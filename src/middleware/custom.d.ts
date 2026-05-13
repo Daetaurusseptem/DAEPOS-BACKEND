@@ -1,0 +1,9 @@
+
+import { Request } from 'express';
+
+declare module 'express-serve-static-core' {
+  interface Request {
+    userId: string; // Change the type according to your needs
+  }
+}
+
