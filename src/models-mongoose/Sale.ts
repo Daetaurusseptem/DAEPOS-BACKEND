@@ -21,6 +21,7 @@ export interface SaleDocument extends Document {
   receivedAmount?: number;
   change?: number;
   company: mongoose.Types.ObjectId;
+  branch: mongoose.Types.ObjectId;
   cashRegister: mongoose.Types.ObjectId;
 }
 
@@ -99,6 +100,11 @@ const saleSchema = new Schema<SaleDocument>({
   company: {
     type: Schema.Types.ObjectId,
     ref: 'Company',
+    required: true,
+  },
+  branch: {
+    type: Schema.Types.ObjectId,
+    ref: 'Branch',
     required: true,
   },
 });

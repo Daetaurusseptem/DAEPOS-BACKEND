@@ -12,7 +12,13 @@ import { Types } from 'mongoose';
 // Obtener todas las ventas
 export const getAllSales = async (req: Request, res: Response) => {
   try {
-      const sales = await Sale.find().populate('user').populate('productsSold.product');
+      const { branchId, companyId } = req.query;
+      let query: any = {};
+      
+      if (companyId) query.company = companyId;
+      if (branchId) query.branch = branchId;
+
+      const sales = await Sale.find(query).populate('user').populate('productsSold.product');
       res.status(200).json(sales);
   } catch (error) {
       res.status(500).json({ message: error });
@@ -55,11 +61,11 @@ const deductIngredientsForCompositeItem = async (recipeId: any, quantity: number
 
 
 // Procesar la venta y actualizar el inventario
-const processSale = async (productsSold: any[]) => {
+const processSale = async (productsSold: any[], branchId: any) => {
   for (const productSold of productsSold) {
-    // Utilizar el ID del producto que ahora se garantiza que estará presente
-    const item = await InventoryItem.findOne({product:productSold.product}).populate('product');
-    if (!item) throw new Error('Item not found qui');
+    // Utilizar el ID del producto y la sucursal para encontrar el item correcto
+    const item = await InventoryItem.findOne({ product: productSold.product, branch: branchId }).populate('product');
+    if (!item) throw new Error(`Item for product ${productSold.product} not found in branch ${branchId}`);
     
     // Buscar el producto para verificar si es compuesto
     const product = await Product.findById((item.product as any)._id);
@@ -99,8 +105,14 @@ export const createSale = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'User does not belong to any company' });
     }
 
-    // Procesar la venta y actualizar el inventario
-    await processSale(productsSold);
+    // Obtener la sucursal del usuario
+    const branchId = userDoc.branch;
+    if (!branchId && userDoc.role !== 'sysadmin' && userDoc.role !== 'companyAdmin') {
+      return res.status(400).json({ message: 'User is not assigned to any branch' });
+    }
+
+    // Procesar la venta y actualizar el inventario (pasando la sucursal)
+    await processSale(productsSold, branchId);
 
     // Crear una nueva venta con los datos proporcionados
     const newSaleData: any = {
@@ -131,7 +143,8 @@ export const createSale = async (req: Request, res: Response) => {
       }),
       date: new Date(),
       paymentMethod,
-      company: companyId
+      company: companyId,
+      branch: branchId
     };
 
     // Añadir información adicional según el método de pago

@@ -180,3 +180,79 @@ export const getIngredientsStatisticsByWeek = async (req: Request, res: Response
     res.status(500).json({ message: 'Error fetching ingredients statistics by week', error });
   }
 };
+
+export const getDashboardSummary = async (req: Request, res: Response) => {
+  try {
+    const { companyId, branchId } = req.query;
+
+    if (!companyId) {
+      return res.status(400).json({ message: 'companyId is required' });
+    }
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const companyObjectId = new mongoose.Types.ObjectId(companyId as string);
+    const branchFilter: any = { company: companyObjectId };
+    if (branchId) {
+      branchFilter.branch = new mongoose.Types.ObjectId(branchId as string);
+    }
+
+    const salesFilter: any = {
+      company: companyObjectId,
+      date: { $gte: startOfDay, $lte: endOfDay }
+    };
+    if (branchId) {
+      salesFilter.branch = new mongoose.Types.ObjectId(branchId as string);
+    }
+
+    // 1. Total Sales Today
+    const salesToday = await Sale.aggregate([
+      {
+        $match: salesFilter
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: "$total" },
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // 2. Low Stock Count
+    const lowStockCount = await InventoryItem.countDocuments({
+      ...branchFilter,
+      stock: { $lt: 5 },
+      product: { $exists: true, $ne: null }
+    });
+
+    // 3. Active Registers
+    const activeRegisters = await mongoose.model('CashRegister').countDocuments({
+      ...branchFilter,
+      closed: false
+    });
+
+    // 4. Recent Sales (Last 5)
+    const recentSales = await Sale.find({ ...branchFilter })
+      .sort({ date: -1 })
+      .limit(5)
+      .populate('user', 'name username');
+
+    res.status(200).json({
+      ok: true,
+      summary: {
+        totalSalesToday: salesToday[0]?.total || 0,
+        transactionsToday: salesToday[0]?.count || 0,
+        lowStockCount,
+        activeRegisters,
+        recentSales
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching dashboard summary', error });
+  }
+};

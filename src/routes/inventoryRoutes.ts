@@ -6,7 +6,8 @@ import {
   deleteInventoryItem,
   processSale,
   getInventoryByCategory,
-  getInventoryItemById
+  getInventoryItemById,
+  getStockByProductAndBranch
 } from '../controllers/inventoryController';
 import { verifyToken as validarJWT } from '../middleware/jwtMiddleware';
 
@@ -21,5 +22,6 @@ router.post('/', createInventoryItem);
 router.put('/:id', updateInventoryItem);
 router.delete('/:id', deleteInventoryItem);
 router.post('/process-sale', processSale);
+router.get('/stock/:companyId/:branchId/:productId', getStockByProductAndBranch);
 
 export default router;

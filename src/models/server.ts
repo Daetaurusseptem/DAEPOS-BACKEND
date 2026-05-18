@@ -19,6 +19,9 @@ import recipeRoutes from '../routes/recipeRoutes';
 
 import statisticsRoutes from '../routes/statisticsRoutes';
 import physicalRegisterRoutes from '../routes/physicalRegisterRoutes';
+import branchRoutes from '../routes/branchRoutes';
+import stockTransferRoutes from '../routes/stockTransferRoutes';
+import notificationRoutes from '../routes/notificationRoutes';
 
 export class Server {
   private app: Application;
@@ -36,7 +39,8 @@ export class Server {
 
   private config(): void {
     // Configuración de middlewares
-    this.app.use(bodyParser.json());
+    this.app.use(bodyParser.json({ limit: '50mb' }));
+    this.app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
     this.app.use(cors());
   }
 
@@ -57,6 +61,9 @@ export class Server {
     this.app.use('/api/recipes', recipeRoutes);
     this.app.use('/api/statistics', statisticsRoutes);
     this.app.use('/api/physical-registers', physicalRegisterRoutes);
+    this.app.use('/api/branches', branchRoutes);
+    this.app.use('/api/stock-transfers', stockTransferRoutes);
+    this.app.use('/api/notifications', notificationRoutes);
   }
 
 

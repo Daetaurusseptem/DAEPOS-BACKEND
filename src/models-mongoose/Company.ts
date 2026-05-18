@@ -23,6 +23,7 @@ export interface CompanyDocument extends Document {
     SubscriptionHistory?: Subscription[];
     maxActiveRegisters: number;
     maxCashLimit: number;
+    saleType: 'retail' | 'hospitality';
 }
 
 // Esquema del modelo de Company
@@ -53,6 +54,11 @@ const companySchema = new Schema<CompanyDocument>({
     maxCashLimit: {
         type: Number,
         default: 5000
+    },
+    saleType: {
+        type: String,
+        enum: ['retail', 'hospitality'],
+        default: 'retail'
     },
     SubscriptionHistory: [{
         month: String,

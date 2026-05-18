@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import jwt, { Secret } from 'jsonwebtoken';
 import User from '../models-mongoose/User';
+import mongoose from 'mongoose';
 
 import bcrypt from "bcrypt";
 import { generarJWT } from '../helpers/jwt-helper';
@@ -40,7 +41,7 @@ export const login = async (req: Request, resp: Response) => {
         return resp.status(200).json({
             ok: true,
             token,
-            menu: getMenuFrontEnd(usuarioDB.role)
+            menu: getMenuFrontEnd(usuarioDB.role, usuarioDB.permissions)
         })
 
 
@@ -72,8 +73,17 @@ export const renewToken = async (req: any, resp: Response) => {
         })
     }
 
-    const company = await Company.findOne({ adminId: uid })
-  
+    let company;
+    let branch;
+
+    if (usuario.role === 'companyAdmin') {
+        company = await Company.findOne({ adminId: uid });
+    } else if ((usuario.role === 'admin' || usuario.role === 'user') && usuario.companyId) {
+        company = await Company.findById(usuario.companyId);
+        if (usuario.branch) {
+            branch = await mongoose.model('Branch').findById(usuario.branch);
+        }
+    }
 
 
 
@@ -84,8 +94,8 @@ export const renewToken = async (req: any, resp: Response) => {
         uid,
         usuario,
         company,
-        menu: getMenuFrontEnd(usuario?.role)
-
+        branch,
+        menu: getMenuFrontEnd(usuario?.role, usuario?.permissions)
     });
 
 

@@ -10,6 +10,7 @@ export interface ProductDocument extends Document {
   categories: Schema.Types.ObjectId[];
   isComposite: boolean;
   recipe?: Schema.Types.ObjectId; // Referencia a la receta si es un producto compuesto
+  status?: 'active' | 'pending_verification';
 }
 
 const productSchema = new Schema<ProductDocument>({
@@ -21,7 +22,8 @@ const productSchema = new Schema<ProductDocument>({
   company: { type: Schema.Types.ObjectId, ref: 'Company', required: true },
   categories: [{ type: Schema.Types.ObjectId, ref: 'Category', required: true }],
   isComposite: { type: Boolean, required: true },
-  recipe: { type: Schema.Types.ObjectId, ref: 'Recipe' }
+  recipe: { type: Schema.Types.ObjectId, ref: 'Recipe' },
+  status: { type: String, enum: ['active', 'pending_verification'], default: 'active' }
 });
 
 

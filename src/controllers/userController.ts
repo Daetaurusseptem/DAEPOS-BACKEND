@@ -49,11 +49,22 @@ export const getNumberUsers = async (req: Request, res: Response) => {
 
 export const getAllNonAdminUsersOfCompany = async (req: Request, res: Response) => {
   const adminId = req.params.adminId;
-  const { page = 1, limit = 10, search = '' } = req.query;
+  const { page = 1, limit = 10, search = '', branchId, role } = req.query;
 
   try {
-    // Encuentra la Company basada en adminId
-    const company = await Company.findOne({ adminId }).exec();
+    // 1. Intentar encontrar al usuario solicitante por su ID para obtener su companyId
+    const requestingUser = await User.findById(adminId).exec();
+    
+    let company = null;
+    if (requestingUser && requestingUser.companyId) {
+      company = await Company.findById(requestingUser.companyId).exec();
+    }
+
+    // 2. Si no se encontró por usuario (ej: en cargas maestras), buscar por el adminId de la compañía
+    if (!company) {
+      company = await Company.findOne({ adminId }).exec();
+    }
+
     if (!company) {
       return res.status(404).send('Company no encontrada.');
     }
@@ -64,14 +75,32 @@ export const getAllNonAdminUsersOfCompany = async (req: Request, res: Response) 
     const skip = (pageNumber - 1) * limitNumber;
 
     // Filtrar usuarios por compañía y por término de búsqueda, excluyendo al admin
-    const query = {
+    const query: any = {
       companyId: company._id,
       _id: { $ne: adminId },
       name: { $regex: search, $options: 'i' } // Buscar por nombre, insensible a mayúsculas
     };
 
+    // Si el solicitante es un Gerente de Sucursal (rol 'admin'), aplicar aislamiento estricto
+    if (requestingUser && requestingUser.role === 'admin') {
+      query.role = 'user'; // Solo cajeros / personal operativo
+      query.branch = requestingUser.branch; // Solo sucursales a las que pertenece el gerente
+    } else {
+      // El Company Admin o SysAdmin pueden usar los filtros dinámicos
+      if (branchId === 'corporativo') {
+        query.branch = null;
+      } else if (branchId) {
+        query.branch = branchId;
+      }
+
+      if (role) {
+        query.role = role;
+      }
+    }
+
     // Obtener los usuarios paginados y contar el total
     const users = await User.find(query)
+      .populate('branch', 'name')
       .skip(skip)
       .limit(limitNumber)
       .exec();
@@ -95,7 +124,7 @@ export const getAllUsersOfCompany = async (req: Request, res: Response) => {
   try {
 
     // Encuentra todos los usuarios de la Company, excluyendo al administrador
-    const users = await User.find({ companyId });
+    const users = await User.find({ companyId }).populate('branch', 'name');
     
     res.status(200).json({ok:true,users});
   } catch (error) {
@@ -222,9 +251,8 @@ export const getUserByIdSoloAdmin = async (req: Request, res: Response) => {
   }
 };
 
-// Controlador para crear un nuevo usuario
 export const createUser = async (req: Request, res: Response) => {
-  const { username, password, name, role, email, companyId } = req.body;
+  const { username, password, name, role, email, companyId, branch, permissions } = req.body;
 
   const userExistsDb = await User.findOne({username:username});
   if(userExistsDb){
@@ -241,6 +269,8 @@ export const createUser = async (req: Request, res: Response) => {
           name,
           role,
           email,
+          branch,
+          permissions,
           img:'no-image'
       });
       const savedUser = await newUser.save();
@@ -254,17 +284,32 @@ export const createUser = async (req: Request, res: Response) => {
 // Controlador para actualizar un usuario por su ID
 export const updateUser = async (req: Request, res: Response) => {
   const userId = req.params.id;
-  const { username, password, name, email } = req.body;
+  const { username, password, name, email, role, branch, permissions } = req.body;
 
- 
   try {
+    const updateData: any = {
+      username,
+      name,
+      email,
+      role,
+      permissions: permissions || []
+    };
+
+    if (password && password.trim() !== '') {
+      updateData.password = await bcrypt.hash(password, 10);
+    }
+
+    const updateQuery: any = { $set: updateData };
+
+    if (branch === '' || branch === null || branch === 'undefined' || branch === 'null') {
+      updateQuery.$unset = { branch: 1 };
+    } else if (branch) {
+      updateQuery.$set.branch = branch;
+    }
+
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      {
-        username,
-        name,
-        email
-      },
+      updateQuery,
       { new: true }
     );
 

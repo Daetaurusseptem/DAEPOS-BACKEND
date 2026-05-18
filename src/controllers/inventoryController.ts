@@ -5,6 +5,15 @@ import Product from '../models-mongoose/Product';
 
 export const createInventoryItem = async (req: Request, res: Response) => {
   try {
+    // Si no se pasó un proveedor explícitamente pero hay un producto asociado,
+    // vincular el proveedor de ese producto de manera automática e invisible.
+    if (!req.body.supplier && req.body.product) {
+      const prod = await Product.findById(req.body.product).exec();
+      if (prod && prod.supplier) {
+        req.body.supplier = prod.supplier;
+      }
+    }
+
     const item = new InventoryItem(req.body);
     await item.save();
     res.status(201).json({ ok: true, item });
@@ -16,9 +25,13 @@ export const createInventoryItem = async (req: Request, res: Response) => {
 export const getInventoryByCompany = async (req: Request, res: Response) => {
   try {
     const { companyId } = req.params;
-    const { search = '', type = 'all' } = req.query;
+    const { search = '', type = 'all', branchId } = req.query;
 
     let query: any = { company: companyId };
+
+    if (branchId) {
+      query.branch = branchId;
+    }
 
     if (search) {
       query.name = { $regex: search, $options: 'i' };
@@ -33,6 +46,7 @@ export const getInventoryByCompany = async (req: Request, res: Response) => {
     const items = await InventoryItem.find(query)
       .populate('supplier')
       .populate('product')
+      .populate('branch', 'name')
       .sort({ name: 1 });
 
     res.status(200).json({ ok: true, items });
@@ -44,9 +58,13 @@ export const getInventoryByCompany = async (req: Request, res: Response) => {
 export const getInventoryByCategory = async (req: Request, res: Response) => {
   try {
     const { companyId } = req.params;
-    const { category, search = '', page = 1, limit = 10 } = req.query;
+    const { category, search = '', page = 1, limit = 10, branchId } = req.query;
 
     let query: any = { company: companyId };
+
+    if (branchId) {
+      query.branch = branchId;
+    }
 
     if (search) {
       query.name = { $regex: search, $options: 'i' };
@@ -159,6 +177,21 @@ export const processSale = async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Sale Processing Error:', error);
     res.status(400).json({ ok: false, message: error.message });
+  }
+};
+
+export const getStockByProductAndBranch = async (req: Request, res: Response) => {
+  try {
+    const { companyId, branchId, productId } = req.params;
+    const item = await InventoryItem.findOne({ company: companyId, branch: branchId, product: productId });
+    
+    if (!item) {
+      return res.status(200).json({ ok: true, stock: 0 });
+    }
+    
+    res.status(200).json({ ok: true, stock: item.stock });
+  } catch (error) {
+    res.status(500).json({ ok: false, message: 'Error fetching stock', error });
   }
 };
 

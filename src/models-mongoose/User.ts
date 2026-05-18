@@ -8,9 +8,11 @@ export interface UserDocument extends Document {
   email: string;
   password: string;
   name: string;
-  role: 'admin' | 'user' | 'sysadmin' ;
+  role: 'admin' | 'user' | 'sysadmin' | 'companyAdmin';
+  branch?: mongoose.Types.ObjectId;
   img? : string;
   lastLogin? : Date;
+  permissions?: string[];
 }
 
 // Esquema del modelo de usuario
@@ -37,9 +39,13 @@ const userSchema = new Schema<UserDocument>({
   },
   role: {  
     type: String,
-    enum: ['admin', 'user','sysadmin'],
+    enum: ['admin', 'user','sysadmin', 'companyAdmin'],
     default: 'user',
     required: true,
+  },
+  branch: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Branch',
   },
   img:{
     type:String
@@ -47,6 +53,10 @@ const userSchema = new Schema<UserDocument>({
   lastLogin:{
     type:Date,
     default:Date.now
+  },
+  permissions: {
+    type: [String],
+    default: []
   }
   // Define otros campos de usuario según tus necesidades
 });

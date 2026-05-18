@@ -3,6 +3,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface InventoryItemDocument extends Document {
   name: string;
   company: mongoose.Types.ObjectId;
+  branch: mongoose.Types.ObjectId;
   supplier: mongoose.Types.ObjectId;
   stock: number;
   costPrice: number;
@@ -22,6 +23,7 @@ export interface InventoryItemDocument extends Document {
 const inventoryItemSchema = new Schema<InventoryItemDocument>({
   name: { type: String, required: true },
   company: { type: Schema.Types.ObjectId, ref: 'Company', required: true },
+  branch: { type: Schema.Types.ObjectId, ref: 'Branch', required: true },
   supplier: { type: Schema.Types.ObjectId, ref: 'Supplier', required: true },
   stock: { type: Number, required: true, default: 0, min: 0 },
   costPrice: { type: Number, required: true, min: 0 },
