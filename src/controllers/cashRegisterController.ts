@@ -29,6 +29,12 @@ export const openCashRegister = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Usuario o empresa no encontrados' });
     }
 
+    // El campo branch debe ser obligatorio para asegurar la segmentación por sucursal
+    const branchId = userDoc.branch;
+    if (!branchId) {
+      return res.status(400).json({ message: 'El cajero debe pertenecer a una sucursal para poder abrir caja' });
+    }
+
     const company = await Company.findById(userDoc.companyId);
     if (!company) {
       return res.status(404).json({ message: 'Empresa no encontrada' });
@@ -50,6 +56,7 @@ export const openCashRegister = async (req: Request, res: Response) => {
       user,
       physicalRegister,
       company: userDoc.companyId,
+      branch: branchId, // <-- Guardar sucursal objetivo
       initialAmount,
       expectedAmount: initialAmount,
       startDate: new Date(),
@@ -127,6 +134,79 @@ export const hasOpenCashRegister = async (req: Request, res: Response) => {
     res.status(200).json(!!openCashRegister);
   } catch (error) {
     res.status(500).json({ message: 'Error checking open cash register', error });
+  }
+};
+
+export const getActiveRegistersByBranch = async (req: Request, res: Response) => {
+  try {
+    const { branchId } = req.params;
+    const activeRegisters = await CashRegister.find({ branch: branchId, closed: false })
+      .populate('user', 'name username email img')
+      .populate('physicalRegister', 'name description');
+
+    res.status(200).json({ ok: true, activeRegisters });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching active cash registers for branch', error });
+  }
+};
+
+export const getCashRegistersHistory = async (req: Request, res: Response) => {
+  try {
+    const { branchId } = req.params;
+    const { userId, startDate, endDate, discrepancy, page = 1, limit = 10 } = req.query;
+
+    const query: any = { branch: branchId };
+
+    if (userId) {
+      query.user = userId;
+    }
+
+    if (startDate || endDate) {
+      query.startDate = {};
+      if (startDate) {
+        query.startDate.$gte = moment.utc(startDate as string).startOf('day').toDate();
+      }
+      if (endDate) {
+        query.startDate.$lte = moment.utc(endDate as string).endOf('day').toDate();
+      }
+    }
+
+    if (discrepancy) {
+      if (discrepancy === 'perfect') {
+        query.difference = 0;
+      } else if (discrepancy === 'discrepancy') {
+        query.difference = { $ne: 0 };
+      } else if (discrepancy === 'deficit') {
+        query.difference = { $lt: 0 };
+      } else if (discrepancy === 'surplus') {
+        query.difference = { $gt: 0 };
+      }
+    }
+
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+    const skip = (pageNum - 1) * limitNum;
+
+    const cashRegisters = await CashRegister.find(query)
+      .populate('user', 'name username email img')
+      .populate('physicalRegister', 'name description')
+      .sort({ startDate: -1 })
+      .skip(skip)
+      .limit(limitNum);
+
+    const total = await CashRegister.countDocuments(query);
+    const totalPages = Math.ceil(total / limitNum);
+
+    res.status(200).json({
+      ok: true,
+      cashRegisters,
+      total,
+      page: pageNum,
+      totalPages,
+      limit: limitNum
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching cash registers history', error });
   }
 };
 

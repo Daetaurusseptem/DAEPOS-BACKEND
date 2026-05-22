@@ -1,26 +1,42 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
+export interface RestockItem {
+  type: 'Product' | 'RawMaterial'; // Modelos en mayúscula para refPath
+  itemRef: mongoose.Types.ObjectId; // Referencia dinámica
+  quantity: number;
+  costPrice: number;
+}
+
 export interface SupplierRestockDocument extends Document {
   company: mongoose.Types.ObjectId;
   supplier: mongoose.Types.ObjectId;
   branch: mongoose.Types.ObjectId;
   expectedDate: Date;
-  itemsSummary: string; // Resumen de los artículos programados a reponer
+  itemsSummary?: string;
+  items: RestockItem[];
   status: 'pending' | 'completed' | 'cancelled';
   notes?: string;
   isRecurring: boolean;
   recurrence: 'none' | 'daily' | 'weekly' | 'monthly';
-  recurrenceDays?: number; // Para recurrencia personalizada
+  recurrenceDays?: number;
   createdAt: Date;
   updatedAt: Date;
 }
+
+const restockItemSchema = new Schema<RestockItem>({
+  type: { type: String, enum: ['Product', 'RawMaterial'], required: true },
+  itemRef: { type: Schema.Types.ObjectId, refPath: 'items.type', required: true }, // [DINÁMICO]
+  quantity: { type: Number, required: true, min: 0 },
+  costPrice: { type: Number, required: true, min: 0 }
+});
 
 const supplierRestockSchema = new Schema<SupplierRestockDocument>({
   company: { type: Schema.Types.ObjectId, ref: 'Company', required: true },
   supplier: { type: Schema.Types.ObjectId, ref: 'Supplier', required: true },
   branch: { type: Schema.Types.ObjectId, ref: 'Branch', required: true },
   expectedDate: { type: Date, required: true },
-  itemsSummary: { type: String, required: true },
+  itemsSummary: { type: String },
+  items: { type: [restockItemSchema], default: [] },
   status: { type: String, enum: ['pending', 'completed', 'cancelled'], default: 'pending' },
   notes: { type: String },
   isRecurring: { type: Boolean, default: false },

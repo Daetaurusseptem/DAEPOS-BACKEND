@@ -11,6 +11,7 @@ export interface CashRegisterDocument extends Document {
   user: mongoose.Types.ObjectId;
   physicalRegister: mongoose.Types.ObjectId; // Reference to the physical station
   company: mongoose.Types.ObjectId;
+  branch: mongoose.Types.ObjectId; // Reference to the branch
   startDate: Date;
   endDate?: Date;
   initialAmount: number;
@@ -54,6 +55,11 @@ const cashRegisterSchema: Schema = new Schema({
   company: {
     type: Schema.Types.ObjectId,
     ref: 'Company',
+    required: true,
+  },
+  branch: {
+    type: Schema.Types.ObjectId,
+    ref: 'Branch',
     required: true,
   },
   startDate: {
@@ -101,5 +107,9 @@ const cashRegisterSchema: Schema = new Schema({
     default: false
   }
 });
+
+// Crear índices eficientes para consultas de auditoría y monitoreo
+cashRegisterSchema.index({ branch: 1, closed: 1 });
+cashRegisterSchema.index({ startDate: -1 });
 
 export default mongoose.model<CashRegisterDocument>('CashRegister', cashRegisterSchema);

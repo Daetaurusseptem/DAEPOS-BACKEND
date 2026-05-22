@@ -13,7 +13,7 @@ export interface RecipeDocument extends Document {
 }
 
 const recipeIngredientSchema = new Schema<RecipeIngredient>({
-  ingredient: { type: Schema.Types.ObjectId, ref: 'InventoryItem', required: true },
+  ingredient: { type: Schema.Types.ObjectId, ref: 'RawMaterial', required: true },
   quantity: { type: Number, required: true }
 });
 

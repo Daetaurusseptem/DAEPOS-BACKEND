@@ -82,8 +82,8 @@ export const getAllProductsOfCompanyForSysadmin = async (req: Request, res: Resp
 // Obtener todos los productos de una Company
 export const getAllCompanyProducts = async (req: Request, res: Response) => {
     try {
-        const { id } = req.params;
-        const products = await Product.find({ company: id }).populate('supplier');
+        const { companyId } = req.params;
+        const products = await Product.find({ company: companyId }).populate('supplier');
         res.status(200).json({ ok: true, products });
     } catch (error) {
         res.status(500).json({ message: error });

@@ -6,7 +6,10 @@ import CashRegister from '../models-mongoose/CashRegister';
 import InventoryItem from '../models-mongoose/InventoryItem';
 import Recipe from '../models-mongoose/Recipe';
 import User from '../models-mongoose/User';
-import Product from '../models-mongoose/Product'; // Importar el modelo Product para acceder a sus campos
+import Product from '../models-mongoose/Product';
+import Customer from '../models-mongoose/Customer';
+import Promotion from '../models-mongoose/Promotion';
+import Branch from '../models-mongoose/Branch';
 import { Types } from 'mongoose';
 
 // Obtener todas las ventas
@@ -47,15 +50,23 @@ const deductStockForSimpleItem = async (itemId: string, quantity: number) => {
 };  
 
 // Función para deducir ingredientes para un ítem compuesto
-const deductIngredientsForCompositeItem = async (recipeId: any, quantity: number) => {
+const deductIngredientsForCompositeItem = async (recipeId: any, quantity: number, branchId: any) => {
   const recipe = await Recipe.findById(recipeId).populate('ingredients.ingredient');
   if (!recipe) throw new Error('Recipe not found');
   for (const recipeIngredient of recipe.ingredients) {
-      const ingredient = await InventoryItem.findById(recipeIngredient.ingredient._id);
-      if (!ingredient) throw new Error('Ingredient not found');
-      ingredient.stock -= recipeIngredient.quantity * quantity;
-      if (ingredient.stock < 0) throw new Error(`Not enough ${ingredient.name} in stock`);
-      await ingredient.save();
+      // Buscar el stock local de este ingrediente maestro en la sucursal actual
+      const ingredientItem = await InventoryItem.findOne({ 
+        rawMaterial: recipeIngredient.ingredient._id, 
+        branch: branchId 
+      });
+      if (!ingredientItem) {
+        throw new Error(`Insumo ${(recipeIngredient.ingredient as any).name || 'desconocido'} no está registrado en esta sucursal.`);
+      }
+      ingredientItem.stock -= recipeIngredient.quantity * quantity;
+      if (ingredientItem.stock < 0) {
+        throw new Error(`Stock insuficiente de ${ingredientItem.name} en esta sucursal.`);
+      }
+      await ingredientItem.save();
   }
 };
 
@@ -74,7 +85,7 @@ const processSale = async (productsSold: any[], branchId: any) => {
     // Verificar si el producto es compuesto y deducir los ingredientes si es necesario
     if (product.isComposite) { 
       if (!product.recipe) throw new Error('Composite product does not have a recipe');
-      await deductIngredientsForCompositeItem(product.recipe, productSold.quantity);
+      await deductIngredientsForCompositeItem(product.recipe, productSold.quantity, branchId);
     } else {
       // Deducir el stock del ítem simple 
       await deductStockForSimpleItem(item._id.toString(), productSold.quantity);
@@ -86,7 +97,10 @@ const processSale = async (productsSold: any[], branchId: any) => {
 // Crear una venta
 export const createSale = async (req: Request, res: Response) => {
   try {
-    const { user, total, discount, productsSold, paymentMethod, receivedAmount, change, paymentReference } = req.body;
+    const { 
+      user, total, discount, productsSold, paymentMethod, receivedAmount, 
+      change, paymentReference, customerId, promotionId, pointsRedeemed 
+    } = req.body;
 
     // Obtener la caja abierta del usuario
     const cashRegister = await CashRegister.findOne({ user, closed: false });
@@ -113,6 +127,62 @@ export const createSale = async (req: Request, res: Response) => {
 
     // Procesar la venta y actualizar el inventario (pasando la sucursal)
     await processSale(productsSold, branchId);
+
+    // Obtener la sucursal para leer su configuración local de lealtad
+    const branchDoc = await Branch.findById(branchId);
+
+    let calculatedPointsEarned = 0;
+    let validatedPointsRedeemed = 0;
+
+    // Procesar puntos y estadísticas del cliente si se seleccionó uno
+    if (customerId) {
+      const customerDoc = await Customer.findById(customerId);
+      if (customerDoc) {
+        // Solo acumular/canjear puntos si el programa está habilitado en esta sucursal
+        if (branchDoc && branchDoc.loyaltySettings && branchDoc.loyaltySettings.enabled) {
+          // 1. Canjear Puntos
+          if (pointsRedeemed && pointsRedeemed > 0) {
+            if (pointsRedeemed > customerDoc.loyaltyPoints) {
+              return res.status(400).json({ message: 'El cliente no tiene suficientes puntos acumulados para canjear.' });
+            }
+            customerDoc.loyaltyPoints -= pointsRedeemed;
+            validatedPointsRedeemed = pointsRedeemed;
+          }
+
+          // 2. Acumular Puntos (sobre el total neto de la compra)
+          const netAmount = total - (discount || 0);
+          const earnRate = branchDoc.loyaltySettings.pointsEarnRate || 10;
+          calculatedPointsEarned = Math.floor(netAmount / earnRate);
+          if (calculatedPointsEarned > 0) {
+            customerDoc.loyaltyPoints += calculatedPointsEarned;
+          }
+        }
+
+        // 3. Registrar consumo histórico del cliente (independiente de si los puntos están activos)
+        customerDoc.totalSpent += (total - (discount || 0));
+        customerDoc.salesCount += 1;
+
+        // 4. Ajustar el Tier del cliente automáticamente basado en consumo
+        if (customerDoc.totalSpent >= 10000) {
+          customerDoc.tier = 'gold';
+        } else if (customerDoc.totalSpent >= 2000) {
+          customerDoc.tier = 'silver';
+        } else {
+          customerDoc.tier = 'bronze';
+        }
+
+        await customerDoc.save();
+      }
+    }
+
+    // Procesar uso de promoción/cupón si aplica
+    if (promotionId) {
+      const promotionDoc = await Promotion.findById(promotionId);
+      if (promotionDoc) {
+        promotionDoc.usageCount += 1;
+        await promotionDoc.save();
+      }
+    }
 
     // Crear una nueva venta con los datos proporcionados
     const newSaleData: any = {
@@ -144,7 +214,11 @@ export const createSale = async (req: Request, res: Response) => {
       date: new Date(),
       paymentMethod,
       company: companyId,
-      branch: branchId
+      branch: branchId,
+      customer: customerId || undefined,
+      appliedPromotion: promotionId || undefined,
+      pointsRedeemed: validatedPointsRedeemed,
+      pointsEarned: calculatedPointsEarned
     };
 
     // Añadir información adicional según el método de pago

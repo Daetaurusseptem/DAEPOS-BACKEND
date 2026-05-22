@@ -135,12 +135,10 @@ export const validarAdmin = async(req:any, resp:Response, next:any)  => {
 
 }
 export const validarUserCompany = async(req:any, resp:Response, next:any)  => {
-
     const uid = req.uid;
-    const {companyId }  =  req.params
+    const {companyId }  =  req.params;
     
     try {
-    
         const usuarioDB = await User.findById(uid );
 
         if ( !usuarioDB ) {
@@ -149,84 +147,93 @@ export const validarUserCompany = async(req:any, resp:Response, next:any)  => {
                 msg: 'Usuario no existe'
             });
         }
-        const companyAdminId = await Company.findById(companyId);
 
-        if ( usuarioDB.get('role') !== 'user' ) {
+        if ( usuarioDB.role !== 'user' && usuarioDB.role !== 'sysadmin' && usuarioDB.role !== 'companyAdmin' ) {
             return resp.status(403).json({
                 ok: false,
                 msg: 'No tiene privilegios para hacer eso'
             });
         }
-        if ( !usuarioDB.companyId == uid) {
+
+        if ( usuarioDB.role !== 'sysadmin' && usuarioDB.companyId?.toString() !== companyId ) {
             return resp.status(403).json({
                 ok: false,
                 msg: 'No tiene privilegios para hacer eso en esta Company',
-                
             });
         }
 
         next();
-
-
     } catch (error) {
-         
         resp.status(500).json({
             ok: false,
             msg: 'Hable con el administrador'
-        })
+        });
     }
+};
 
-}
 export const validarAdminCompany = async(req:any, resp:Response, next:any)  => {
-
     const uid = req.uid;
-    const {companyId }  =  req.params
+    const { companyId } = req.params;
     
     try {
-    
-        const usuarioDB = await User.findById(uid );
+        const usuarioDB = await User.findById(uid);
 
-        if ( !usuarioDB ) {
+        if (!usuarioDB) {
             return resp.status(404).json({
                 ok: false,
                 msg: 'Usuario no existe'
             });
         }
-        const companyAdminId = await Company.findById(companyId);
 
-        if ( usuarioDB.get('role') === 'sysadmin' ) {
-
+        if (usuarioDB.role === 'sysadmin') {
             return next();
         }
-        if ( usuarioDB.get('role') !== 'admin' ) {
-            return resp.status(403).json({
+
+        const company = await Company.findById(companyId);
+        if (!company) {
+            return resp.status(404).json({
                 ok: false,
-                msg: 'No tiene privilegios para hacer eso'
-            });
-        }
-        if ( !companyAdminId?.adminId == uid) {
-            return resp.status(403).json({
-                ok: false,
-                msg: 'No tiene privilegios para hacer eso en esta Company',
-                
+                msg: 'Company no existe'
             });
         }
 
-        next();
+        // Si es companyAdmin, debe ser el dueño asignado a esta Company
+        if (usuarioDB.role === 'companyAdmin') {
+            if (company.adminId?.toString() !== uid) {
+                return resp.status(403).json({
+                    ok: false,
+                    msg: 'No tiene privilegios para acceder a esta Company'
+                });
+            }
+            return next();
+        }
 
+        // Si es admin (gerente de sucursal), debe pertenecer a la misma Company
+        if (usuarioDB.role === 'admin') {
+            if (usuarioDB.companyId?.toString() !== companyId) {
+                return resp.status(403).json({
+                    ok: false,
+                    msg: 'No tiene privilegios para acceder a esta Company'
+                });
+            }
+            return next();
+        }
 
+        // Cualquier otro rol (como user) es denegado
+        return resp.status(403).json({
+            ok: false,
+            msg: 'No tiene privilegios para hacer eso'
+        });
     } catch (error) {
-         
         resp.status(500).json({
             ok: false,
             msg: 'Hable con el administrador'
-        })
+        });
     }
+};
 
-}
 export const validarEmpresaUsuario = async (req: any, res: Response, next: NextFunction) => {
-    const token = req.headers['x-token'];
-    
+    const token = req.header('x-token') || req.headers['x-token'];
     const { companyId } = req.params;
 
     if (!token) {
@@ -237,21 +244,42 @@ export const validarEmpresaUsuario = async (req: any, res: Response, next: NextF
     }
 
     try {
-        const decoded: any = jwt.verify(token, process.env.JWT);  // Ajusta 'tu_secreto_jwt' según tu configuración
+        const decoded: any = jwt.verify(token, process.env.JWT);
         req.uid = decoded.uid;
 
         const usuarioDB = await User.findById(req.uid);
-
         if (!usuarioDB) {
             return res.status(404).json({
                 ok: false,
                 msg: 'Usuario no existe'
             });
         }
-        const empresaDB = await Company.findById(companyId);
-        
 
-        if (!empresaDB || !usuarioDB.companyId==companyId) {
+        if (usuarioDB.role === 'sysadmin') {
+            return next();
+        }
+
+        const empresaDB = await Company.findById(companyId);
+        if (!empresaDB) {
+            return res.status(404).json({
+                ok: false,
+                msg: 'Company no existe'
+            });
+        }
+
+        // Si es companyAdmin, verificar si es el admin asignado a la empresa
+        if (usuarioDB.role === 'companyAdmin') {
+            if (empresaDB.adminId?.toString() !== usuarioDB._id.toString()) {
+                return res.status(403).json({
+                    ok: false,
+                    msg: 'No tiene privilegios para acceder a esta Company'
+                });
+            }
+            return next();
+        }
+
+        // Para admin y user, verificar que pertenezcan a la empresa
+        if (usuarioDB.companyId?.toString() !== companyId) {
             return res.status(403).json({
                 ok: false,
                 msg: 'No tiene privilegios para acceder a esta Company'
@@ -263,7 +291,7 @@ export const validarEmpresaUsuario = async (req: any, res: Response, next: NextF
         console.error(error);
         res.status(500).json({
             ok: false,
-            msg: 'Token inválido'
+            msg: 'Token inválido o error de servidor'
         });
     }
 };

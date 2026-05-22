@@ -13,6 +13,7 @@ export interface UserDocument extends Document {
   img? : string;
   lastLogin? : Date;
   permissions?: string[];
+  isDemo?: boolean;
 }
 
 // Esquema del modelo de usuario
@@ -26,7 +27,7 @@ const userSchema = new Schema<UserDocument>({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Company', // Asegúrate de que esta es la referencia correcta al modelo de usuario
     required: false,
-},
+  },
   password: {
     type: String,
     required: true,
@@ -57,6 +58,10 @@ const userSchema = new Schema<UserDocument>({
   permissions: {
     type: [String],
     default: []
+  },
+  isDemo: {
+    type: Boolean,
+    default: false
   }
   // Define otros campos de usuario según tus necesidades
 });

@@ -97,8 +97,25 @@ export const renewToken = async (req: any, resp: Response) => {
         branch,
         menu: getMenuFrontEnd(usuario?.role, usuario?.permissions)
     });
-
-
 }
+
+export const demoReset = async (req: Request, resp: Response) => {
+    try {
+        const { runSeed } = require('../seed/seed-helper');
+        console.log('🔄 Restaurando base de datos para modo Demo...');
+        await runSeed(true);
+        return resp.status(200).json({
+            ok: true,
+            msg: 'Base de datos restaurada correctamente al estado inicial de demostración.'
+        });
+    } catch (error) {
+        console.error('Error al restaurar base de datos:', error);
+        return resp.status(500).json({
+            ok: false,
+            msg: 'No se pudo completar la restauración de la base de datos.',
+            error: String(error)
+        });
+    }
+};
 
 

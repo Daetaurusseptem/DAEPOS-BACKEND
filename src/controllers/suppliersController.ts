@@ -5,6 +5,9 @@ import Supplier from '../models-mongoose/Supplier';
 import Company from '../models-mongoose/Company';
 import SupplierRestock from '../models-mongoose/SupplierRestock';
 import Notification from '../models-mongoose/Notification';
+import InventoryItem from '../models-mongoose/InventoryItem';
+import Product from '../models-mongoose/Product';
+import RawMaterial from '../models-mongoose/RawMaterial';
 
 
 // Crear un nuevo proveedor
@@ -134,6 +137,7 @@ export const getCompanyRestockSchedules = async (req: Request, res: Response) =>
         const restocks = await SupplierRestock.find(query)
             .populate('supplier')
             .populate('branch')
+            .populate('items.itemRef')
             .sort({ expectedDate: 1 });
         return res.status(200).json({ ok: true, restocks });
     } catch (error) {
@@ -144,13 +148,110 @@ export const getCompanyRestockSchedules = async (req: Request, res: Response) =>
 // Actualizar estado del reabastecimiento con lógica de auto-recurrencia
 export const updateRestockStatus = async (req: Request, res: Response) => {
     try {
-        const { status, expectedDate, itemsSummary, notes } = req.body;
+        const { status, expectedDate, itemsSummary, notes, items, payFromRegister } = req.body;
         const restock = await SupplierRestock.findById(req.params.id);
         if (!restock) return res.status(404).json({ ok: false, message: 'Reabastecimiento no encontrado' });
+
+        const oldStatus = restock.status;
+
+        // Lógica de Reabastecimiento Automático (Incrementar Inventario al completar)
+        if (status === 'completed' && oldStatus !== 'completed') {
+            const itemsToProcess = items || restock.items;
+            if (itemsToProcess && itemsToProcess.length > 0) {
+                for (const item of itemsToProcess) {
+                    let inventoryItem;
+                    const itemTypeLower = item.type.toLowerCase();
+                    if (itemTypeLower === 'product') {
+                        inventoryItem = await InventoryItem.findOne({ 
+                            product: item.itemRef, 
+                            branch: restock.branch 
+                        });
+                    } else if (itemTypeLower === 'rawmaterial' || itemTypeLower === 'raw_material') {
+                        inventoryItem = await InventoryItem.findOne({ 
+                            rawMaterial: item.itemRef, 
+                            branch: restock.branch 
+                        });
+                    }
+
+                    if (inventoryItem) {
+                        const currentStock = Math.max(0, inventoryItem.stock);
+                        const currentCost = inventoryItem.costPrice || 0;
+                        const newQty = item.quantity || 0;
+                        const newCost = item.costPrice || 0;
+
+                        let weightedCost = newCost;
+                        if (currentStock + newQty > 0) {
+                            weightedCost = ((currentStock * currentCost) + (newQty * newCost)) / (currentStock + newQty);
+                        }
+
+                        inventoryItem.stock += newQty;
+                        inventoryItem.costPrice = Math.round(weightedCost * 100) / 100;
+                        await inventoryItem.save();
+                    } else {
+                        let name = 'Nuevo Artículo';
+                        let measurement: any = 'unit';
+
+                        if (itemTypeLower === 'product') {
+                            const prodDoc = await Product.findById(item.itemRef);
+                            if (prodDoc) {
+                                name = prodDoc.name;
+                            }
+                        } else {
+                            const rmDoc = await RawMaterial.findById(item.itemRef);
+                            if (rmDoc) {
+                                name = rmDoc.name;
+                                measurement = rmDoc.measurementUnit;
+                            }
+                        }
+
+                        const newInv = new InventoryItem({
+                            name,
+                            company: restock.company,
+                            branch: restock.branch,
+                            supplier: restock.supplier,
+                            stock: item.quantity,
+                            costPrice: item.costPrice,
+                            measurement,
+                            product: itemTypeLower === 'product' ? item.itemRef : undefined,
+                            rawMaterial: (itemTypeLower === 'rawmaterial' || itemTypeLower === 'raw_material') ? item.itemRef : undefined
+                        });
+                        await newInv.save();
+                    }
+                }
+            }
+
+            // Integración de Caja Chica
+            if (payFromRegister) {
+                try {
+                    const CashRegister = require('../models-mongoose/CashRegister').default;
+                    const activeRegister = await CashRegister.findOne({ branch: restock.branch, closed: false });
+                    if (activeRegister) {
+                        const supplier = await Supplier.findById(restock.supplier);
+                        const supplierName = supplier ? supplier.name : 'Proveedor';
+                        const itemsToProcess = items || restock.items;
+                        const totalCost = (itemsToProcess || []).reduce((sum: number, it: any) => sum + ((it.quantity || 0) * (it.costPrice || 0)), 0);
+
+                        if (totalCost > 0) {
+                            activeRegister.expenses.push({
+                                amount: totalCost,
+                                reason: `Reabastecimiento Proveedor: ${supplierName}`,
+                                type: 'expense',
+                                timestamp: new Date()
+                            });
+                            activeRegister.expectedAmount -= totalCost;
+                            await activeRegister.save();
+                        }
+                    }
+                } catch (regErr) {
+                    console.error('Error registering cash register expense:', regErr);
+                }
+            }
+        }
 
         if (status) restock.status = status;
         if (expectedDate) restock.expectedDate = expectedDate;
         if (itemsSummary) restock.itemsSummary = itemsSummary;
+        if (items) restock.items = items;
         if (notes !== undefined) restock.notes = notes;
 
         await restock.save();

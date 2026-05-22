@@ -1,6 +1,6 @@
 
 import express from 'express';
-import { openCashRegister, closeCashRegister, getCashRegisters, hasOpenCashRegister, getOpenCashRegister, getOpenCashRegisterWithSales, getUserCashRegistersByStartDate, getUserCajasByDate, getCajaDetailsById, addExpense } from '../controllers/cashRegisterController';
+import { openCashRegister, closeCashRegister, getCashRegisters, hasOpenCashRegister, getOpenCashRegister, getOpenCashRegisterWithSales, getUserCashRegistersByStartDate, getUserCajasByDate, getCajaDetailsById, addExpense, getActiveRegistersByBranch, getCashRegistersHistory } from '../controllers/cashRegisterController';
 import { validarUserCompany, verifyToken } from '../middleware/jwtMiddleware';
 
 const router = express.Router();
@@ -13,6 +13,10 @@ router.post('/expense/:id', verifyToken, addExpense);
 
 //CERRAR CAJA
 router.post('/close/:id', verifyToken, closeCashRegister);
+
+// MONITOREO Y AUDITORÍA POR SUCURSAL
+router.get('/active/branch/:branchId', verifyToken, getActiveRegistersByBranch);
+router.get('/history/branch/:branchId', verifyToken, getCashRegistersHistory);
 
 //OBTENER CAJAS CAJA
 router.get('/', getCashRegisters);

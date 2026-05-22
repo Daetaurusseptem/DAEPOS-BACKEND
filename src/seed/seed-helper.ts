@@ -1,6 +1,5 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
-import dotenv from 'dotenv';
 import User from '../models-mongoose/User';
 import Company from '../models-mongoose/Company';
 import Category from '../models-mongoose/Category';
@@ -15,14 +14,13 @@ import StockTransfer from '../models-mongoose/StockTransfer';
 import RawMaterial from '../models-mongoose/RawMaterial';
 import Recipe from '../models-mongoose/Recipe';
 
-dotenv.config();
-
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/DaePoint';
-
-async function seed() {
+export async function runSeed(alreadyConnected: boolean = true): Promise<void> {
   try {
     console.log('🚀 Iniciando Super Seed corregido...');
-    await mongoose.connect(MONGO_URI);
+    if (!alreadyConnected) {
+      const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/DaePoint';
+      await mongoose.connect(MONGO_URI);
+    }
 
     console.log('Sweep old data...');
     await Promise.all([
@@ -35,10 +33,10 @@ async function seed() {
 
     const hashedPassword = await bcrypt.hash('admin123', 10);
 
-    // 1. Sysadmin
+    // 1. Sysadmin (Main Platform Admin)
     const sysadmin = await new User({
       username: 'sysadmin', email: 'sysadmin@daepoint.com', password: hashedPassword,
-      name: 'System Administrator', role: 'sysadmin'
+      name: 'System Administrator', role: 'sysadmin', isDemo: false
     }).save();
 
     // 2. Company
@@ -48,10 +46,10 @@ async function seed() {
       adminId: sysadmin._id, maxActiveRegisters: 10, maxCashLimit: 5000 
     }).save();
 
-    // 3. Company Admin (The Owner)
+    // 3. Company Admin (The Owner) - Marked as Demo!
     const companyAdmin = await new User({
       username: 'companyowner', email: 'owner@superpremium.com', password: hashedPassword,
-      name: 'Jaime (Dueño)', role: 'companyAdmin', companyId: demoCompany._id
+      name: 'Jaime (Dueño)', role: 'companyAdmin', companyId: demoCompany._id, isDemo: true
     }).save();
     
     // Link company to its owner
@@ -68,29 +66,29 @@ async function seed() {
       email: 'norte@superpremium.com', company: demoCompany._id, saleType: 'hospitality'
     }).save();
 
-    // 5. Branch Admins (Managers)
+    // 5. Branch Admins (Managers) - Marked as Demo!
     const branchAdmin = await new User({
       username: 'admin', email: 'admin@centro.com', password: hashedPassword,
-      name: 'Gerente Centro', role: 'admin', companyId: demoCompany._id, branch: branch1._id
+      name: 'Gerente Centro', role: 'admin', companyId: demoCompany._id, branch: branch1._id, isDemo: true
     }).save();
 
     await Branch.findByIdAndUpdate(branch1._id, { manager: branchAdmin._id });
 
     const branchAdmin2 = await new User({
       username: 'admin2', email: 'admin2@norte.com', password: hashedPassword,
-      name: 'Gerente Norte', role: 'admin', companyId: demoCompany._id, branch: branch2._id
+      name: 'Gerente Norte', role: 'admin', companyId: demoCompany._id, branch: branch2._id, isDemo: true
     }).save();
 
     await Branch.findByIdAndUpdate(branch2._id, { manager: branchAdmin2._id });
 
-    // 6. Cashiers
+    // 6. Cashiers - Marked as Demo!
     const users = [];
     // Cajeros de Sucursal Centro
     for (let i = 1; i <= 4; i++) {
       users.push(await new User({
         username: `cajero${i}`, email: `cajero${i}@centro.com`, password: hashedPassword,
         name: `Cajero Centro ${i}`, role: 'user', companyId: demoCompany._id, branch: branch1._id,
-        permissions: i === 1 ? ['inventory_management'] : []
+        permissions: i === 1 ? ['inventory_management'] : [], isDemo: true
       }).save());
     }
 
@@ -98,7 +96,7 @@ async function seed() {
     for (let i = 1; i <= 3; i++) {
       users.push(await new User({
         username: `cajero_norte${i}`, email: `cajero_norte${i}@norte.com`, password: hashedPassword,
-        name: `Cajero Norte ${i}`, role: 'user', companyId: demoCompany._id, branch: branch2._id
+        name: `Cajero Norte ${i}`, role: 'user', companyId: demoCompany._id, branch: branch2._id, isDemo: true
       }).save());
     }
 
@@ -289,10 +287,9 @@ async function seed() {
       recipe: capuccinoRecipe._id
     }).save();
 
-    // Agregar el producto compuesto al array de productos para que pueda ser vendido en la simulación
     products.push(capuccinoProduct);
 
-    // Crear existencias en inventario del Capuccino (no tiene stock independiente porque es compuesto)
+    // Crear existencias en inventario del Capuccino
     await new InventoryItem({
       name: capuccinoProduct.name, company: demoCompany._id, branch: branch1._id,
       product: capuccinoProduct._id, stock: 0, costPrice: 5, sellingPrice: 45,
@@ -309,7 +306,6 @@ async function seed() {
     console.log('💰 Generando y distribuyendo ventas...');
     const allSessions = [openSession, saturatedSession, squaredSession, deficitSession, surplusSession, expensesSession];
     
-    // Initialize payments and sales arrays to collect populated stats
     const sessionData: { [key: string]: { cash: number, credit: number, debit: number, sales: string[] } } = {};
     allSessions.forEach(s => {
       sessionData[s._id.toString()] = { cash: 0, credit: 0, debit: 0, sales: [] };
@@ -318,7 +314,7 @@ async function seed() {
     for (let i = 1; i <= 150; i++) {
       const p = products[Math.floor(Math.random() * products.length)];
       const qty = Math.floor(Math.random() * 4) + 1;
-      const price = 30; // Hardcoded for simplicity
+      const price = 30;
       const subtotal = price * qty;
       
       const session = allSessions[i % allSessions.length];
@@ -331,7 +327,7 @@ async function seed() {
         company: demoCompany._id,
         branch: branch1._id,
         productsSold: [{ product: p._id, quantity: qty, unitPrice: price, subtotal, modifications: [] }],
-        date: new Date(session.startDate.getTime() + Math.random() * 3600000 * 4) // within session timeframe
+        date: new Date(session.startDate.getTime() + Math.random() * 3600000 * 4)
       }).save();
 
       const sData = sessionData[session._id.toString()];
@@ -340,7 +336,6 @@ async function seed() {
       else sData.credit += subtotal;
     }
 
-    // Update expected values based on sales
     for (const session of allSessions) {
       const sData = sessionData[session._id.toString()];
       const totalExpenses = session.expenses.reduce((sum: number, e: any) => sum + e.amount, 0);
@@ -355,24 +350,23 @@ async function seed() {
       };
 
       if (session.closed) {
-        // Maintain difference calculation
         updateObj.actualAmount = expected + (session.difference || 0);
       }
 
       await CashRegister.findByIdAndUpdate(session._id, { $set: updateObj });
     }
 
-    // 9. Usuarios Corporativos (Sin sucursal)
+    // 9. Usuarios Corporativos
     console.log('🏢 Generando personal corporativo...');
     const corporateUsers = [];
     for (let i = 1; i <= 2; i++) {
       corporateUsers.push(await new User({
         username: `corp${i}`, email: `corp${i}@superpremium.com`, password: hashedPassword,
-        name: `Admin Corp ${i}`, role: 'admin', companyId: demoCompany._id, branch: null
+        name: `Admin Corp ${i}`, role: 'admin', companyId: demoCompany._id, branch: null, isDemo: true
       }).save());
     }
 
-    // 10. Traspasos de Stock (Ejemplos)
+    // 10. Traspasos de Stock
     console.log('🔄 Generando traspasos de ejemplo...');
     for (let i = 0; i < 5; i++) {
       const p = products[i];
@@ -390,10 +384,11 @@ async function seed() {
 
     console.log('✅ Super Seed completado con éxito!');
   } catch (error) {
-    console.error('❌ Error:', error);
+    console.error('❌ Error en el proceso de seeding:', error);
+    throw error;
   } finally {
-    await mongoose.disconnect();
+    if (!alreadyConnected) {
+      await mongoose.disconnect();
+    }
   }
 }
-
-seed();

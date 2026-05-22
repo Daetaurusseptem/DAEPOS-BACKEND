@@ -8,6 +8,13 @@ export interface BranchDocument extends Document {
     email: string;
     manager?: mongoose.Types.ObjectId; // Reference to an Admin user
     saleType?: 'retail' | 'hospitality'; // Can override company default
+    loyaltySettings?: {
+        enabled: boolean;
+        identifierType: 'phone' | 'physical_card' | 'both';
+        pointsEarnRate: number;
+        pointsRedeemRate: number;
+        maxRedemptionPercentage: number;
+    };
     createdAt: Date;
     isActive: boolean;
 }
@@ -35,6 +42,13 @@ const branchSchema = new Schema<BranchDocument>({
     saleType: {
         type: String,
         enum: ['retail', 'hospitality'],
+    },
+    loyaltySettings: {
+        enabled: { type: Boolean, default: true },
+        identifierType: { type: String, enum: ['phone', 'physical_card', 'both'], default: 'phone' },
+        pointsEarnRate: { type: Number, default: 10 },
+        pointsRedeemRate: { type: Number, default: 0.10 },
+        maxRedemptionPercentage: { type: Number, default: 100 }
     },
     createdAt: {
         type: Date,

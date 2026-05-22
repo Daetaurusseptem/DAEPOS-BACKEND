@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import InventoryItem from '../models-mongoose/InventoryItem';
 import Recipe from '../models-mongoose/Recipe';
 import Product from '../models-mongoose/Product';
+import User from '../models-mongoose/User';
 
 export const createInventoryItem = async (req: Request, res: Response) => {
   try {
@@ -29,8 +30,20 @@ export const getInventoryByCompany = async (req: Request, res: Response) => {
 
     let query: any = { company: companyId };
 
-    if (branchId) {
-      query.branch = branchId;
+    const userId = (req as any).uid;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ ok: false, message: 'User not found' });
+    }
+
+    if (user.role === 'admin' || user.role === 'user') {
+      if (user.branch) {
+        query.branch = user.branch;
+      }
+    } else {
+      if (branchId) {
+        query.branch = branchId;
+      }
     }
 
     if (search) {
@@ -62,8 +75,20 @@ export const getInventoryByCategory = async (req: Request, res: Response) => {
 
     let query: any = { company: companyId };
 
-    if (branchId) {
-      query.branch = branchId;
+    const userId = (req as any).uid;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ ok: false, message: 'User not found' });
+    }
+
+    if (user.role === 'admin' || user.role === 'user') {
+      if (user.branch) {
+        query.branch = user.branch;
+      }
+    } else {
+      if (branchId) {
+        query.branch = branchId;
+      }
     }
 
     if (search) {

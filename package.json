@@ -1,7 +1,7 @@
 {
-  "name": "pos-cconor",
+  "name": "pos-daepoint",
   "version": "1.0.0",
-  "description": "POS CCONOR SOLUCIONES MX, ES UN POS QUE AYUDARA A LOS COMERCIOS LOCALES DE DURANGO A TENER ACCESO A SOFTWARE DE POS DE MANERA ACCESIBLE Y VIABLE",
+  "description": "DaePoint POS SaaS multi-sucursal y descentralizado para comercios y negocios",
   "main": "./dist/main.js",
   "scripts": {
     "build": "npm install && tsc",
@@ -11,14 +11,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Daetaurusseptem/POS-CCONOR.git"
+    "url": "git+https://github.com/Daetaurusseptem/pos-daepoint.git"
   },
   "author": "Jaime Antonio Burciaga Alvarez",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/Daetaurusseptem/POS-CCONOR/issues"
+    "url": "https://github.com/Daetaurusseptem/pos-daepoint/issues"
   },
-  "homepage": "https://github.com/Daetaurusseptem/POS-CCONOR#readme",
+  "homepage": "https://github.com/Daetaurusseptem/pos-daepoint#readme",
   "dependencies": {
     "@types/mongoose": "^5.11.97",
     "@types/node": "^20.6.0",

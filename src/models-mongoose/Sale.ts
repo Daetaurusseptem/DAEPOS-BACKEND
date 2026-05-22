@@ -23,6 +23,10 @@ export interface SaleDocument extends Document {
   company: mongoose.Types.ObjectId;
   branch: mongoose.Types.ObjectId;
   cashRegister: mongoose.Types.ObjectId;
+  customer?: mongoose.Types.ObjectId;
+  appliedPromotion?: mongoose.Types.ObjectId;
+  pointsRedeemed?: number;
+  pointsEarned?: number;
 }
 
 const saleSchema = new Schema<SaleDocument>({
@@ -106,6 +110,22 @@ const saleSchema = new Schema<SaleDocument>({
     type: Schema.Types.ObjectId,
     ref: 'Branch',
     required: true,
+  },
+  customer: {
+    type: Schema.Types.ObjectId,
+    ref: 'Customer',
+  },
+  appliedPromotion: {
+    type: Schema.Types.ObjectId,
+    ref: 'Promotion',
+  },
+  pointsRedeemed: {
+    type: Number,
+    default: 0,
+  },
+  pointsEarned: {
+    type: Number,
+    default: 0,
   },
 });
 

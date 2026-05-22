@@ -11,18 +11,18 @@ import {
   bulkUploadProducts
 } from '../controllers/productController';
 
-import { validarSysAdmin, verifyToken } from '../middleware/jwtMiddleware'; // Asegúrate de importar los middlewares necesarios
+import { validarSysAdmin, verifyToken, validarEmpresaUsuario, validarAdminOrSysAdmin } from '../middleware/jwtMiddleware';
 
 const router = express.Router();
 
-router.post('/bulk/:companyId', verifyToken, bulkUploadProducts);
-router.post('/:companyId', verifyToken, createProduct);
-router.get('/', getAllProducts);
-router.get('/company/:id', getAllCompanyProducts);
+router.post('/bulk/:companyId', verifyToken, validarEmpresaUsuario, validarAdminOrSysAdmin, bulkUploadProducts);
+router.post('/:companyId', verifyToken, validarEmpresaUsuario, validarAdminOrSysAdmin, createProduct);
+router.get('/', verifyToken, validarSysAdmin, getAllProducts);
+router.get('/company/:companyId', verifyToken, validarEmpresaUsuario, getAllCompanyProducts);
 router.get('/company/sysadmin/:companyId', [verifyToken, validarSysAdmin], getAllProductsOfCompanyForSysadmin);
-router.get('/:id', getProductById);
-router.put('/:id', updateProduct);
-router.delete('/:id', deleteProduct);
-router.get('/search/:companyId', searchProducts);
+router.get('/:id', verifyToken, getProductById);
+router.put('/:id', verifyToken, validarAdminOrSysAdmin, updateProduct);
+router.delete('/:id', verifyToken, validarAdminOrSysAdmin, deleteProduct);
+router.get('/search/:companyId', verifyToken, validarEmpresaUsuario, searchProducts);
 
 export default router;
