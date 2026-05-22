@@ -11,10 +11,10 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 // Controlador para subir archivos
-export const subirArchivo = (req: Request, res: Response) => {
+export const subirArchivo = (req: any, res: Response) => {
 const singleUpload = upload.single('img');
 
-  singleUpload(req, res, async function (error) {
+  singleUpload(req, res, async function (error: any) {
     try {
       if (error) {
         return res.status(500).json({ error: error.message });
