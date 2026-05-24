@@ -23,10 +23,10 @@ export const isCompanyAdmin=async (req: Request, res: Response)=>{
 
 }
 
-// Controlador para obtener todos los usuarios
+// Controlador para obtener todos los usuarios activos
 export const getAllUsers = async (req: Request, res: Response) => {
   try {
-    const users = await User.find({ role: { $in: ['admin', 'user'] } });
+    const users = await User.find({ role: { $in: ['admin', 'user'] }, active: { $ne: false } });
     res.json(users);
   } catch (error) {
     console.error('Error al obtener usuarios:', error);
@@ -74,10 +74,11 @@ export const getAllNonAdminUsersOfCompany = async (req: Request, res: Response) 
     const limitNumber = parseInt(limit as string) > 0 ? parseInt(limit as string) : 10;
     const skip = (pageNumber - 1) * limitNumber;
 
-    // Filtrar usuarios por compañía y por término de búsqueda, excluyendo al admin
+    // Filtrar usuarios por compañía y por término de búsqueda, excluyendo al admin y asegurando que estén activos
     const query: any = {
       companyId: company._id,
       _id: { $ne: adminId },
+      active: { $ne: false },
       name: { $regex: search, $options: 'i' } // Buscar por nombre, insensible a mayúsculas
     };
 
@@ -325,9 +326,10 @@ export const updateUser = async (req: Request, res: Response) => {
   }
 };
 
-// Controlador para eliminar un usuario por su ID
+// Controlador para desactivar un usuario (Soft Delete) por su ID
 export const deleteUser = async (req: Request, res: Response) => {
   const userId = req.params.id;
+  const { reason = 'Desactivado por el administrador' } = req.body;
   
   const adminCompany = await Company.find({adminId:userId})
   
@@ -336,16 +338,19 @@ export const deleteUser = async (req: Request, res: Response) => {
   }
 
   try {
-    const deletedUser = await User.findByIdAndDelete(userId); 
+    const deletedUser = await User.findByIdAndUpdate(
+      userId,
+      { active: false, deactivationReason: reason },
+      { new: true }
+    ); 
 
     if (!deletedUser) { 
       return res.status(404).json({ error: 'Usuario no encontrado' });
-      
     }
  
-    res.json({ message: 'Usuario eliminado con éxito' });
+    res.json({ ok: true, message: 'Usuario desactivado con éxito' });
   } catch (error) {
-    console.error('Error al eliminar el usuario:', error);
-    res.status(500).json({ error: 'Error al eliminar el usuario' });
+    console.error('Error al desactivar el usuario:', error);
+    res.status(500).json({ error: 'Error al desactivar el usuario' });
   }
 };

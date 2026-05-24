@@ -4,6 +4,7 @@ import Product from '../models-mongoose/Product';
 import Company from '../models-mongoose/Company';
 import Category from '../models-mongoose/Category';
 import InventoryItem from '../models-mongoose/InventoryItem';
+import Branch from '../models-mongoose/Branch';
 import { subirArchivo } from '../controllers/fileUploadController';
 
 // Crear un nuevo producto + ítem de inventario
@@ -34,7 +35,7 @@ export const createProduct = async (req: Request, res: Response) => {
             stock: stock || 0,
             costPrice: costPrice || 0,
             sellingPrice: sellingPrice || 0,
-            unitOfMeasure: unitOfMeasure || 'unit'
+            measurement: unitOfMeasure || 'unit'
         });
 
         await newInventoryItem.save();
@@ -96,13 +97,14 @@ export const getProductById = async (req: Request, res: Response) => {
         const product = await Product.findById(req.params.id).populate('supplier');
         if (!product) return res.status(404).json({ ok: false, message: 'Producto no encontrado' });
 
-        // Buscar el ítem de inventario asociado
-        const inventoryItem = await InventoryItem.findOne({ product: product._id });
+        // Buscar todos los ítems de inventario asociados (de todas las sucursales)
+        const inventoryItems = await InventoryItem.find({ product: product._id }).populate('branch', 'name');
 
         res.status(200).json({ 
             ok: true, 
             product,
-            inventoryItem: inventoryItem || null
+            inventoryItems,
+            inventoryItem: inventoryItems[0] || null
         });
     } catch (error) {
         res.status(500).json({ ok: false, message: error });
@@ -124,12 +126,27 @@ export const updateProduct = async (req: Request, res: Response) => {
         if (stock !== undefined) inventoryUpdate.stock = stock;
         if (costPrice !== undefined) inventoryUpdate.costPrice = costPrice;
         if (sellingPrice !== undefined) inventoryUpdate.sellingPrice = sellingPrice;
-        if (unitOfMeasure !== undefined) inventoryUpdate.unitOfMeasure = unitOfMeasure;
+        if (unitOfMeasure !== undefined) inventoryUpdate.measurement = unitOfMeasure;
 
         let updatedInventory = null;
         if (Object.keys(inventoryUpdate).length > 0) {
+            const userId = (req as any).uid;
+            let query: any = { product: updatedProduct._id };
+            
+            if (userId) {
+                const User = mongoose.model('User');
+                const user = await User.findById(userId);
+                if (user && (user as any).branch) {
+                    query.branch = (user as any).branch;
+                }
+            }
+            
+            if (req.body.branchId) {
+                query.branch = req.body.branchId;
+            }
+
             updatedInventory = await InventoryItem.findOneAndUpdate(
-                { product: updatedProduct._id },
+                query,
                 { $set: inventoryUpdate },
                 { new: true, upsert: true } // Upsert por si acaso no existía el registro de inventario
             );
@@ -196,7 +213,7 @@ export const bulkUploadProducts = async (req: Request, res: Response) => {
     console.log('--- RECIBIENDO PETICIÓN DE CARGA MASIVA ---');
     try {
         const { companyId } = req.params;
-        const { items, autoCreateCategories, supplierId } = req.body;
+        const { items, autoCreateCategories, supplierId, branchId } = req.body;
 
         if (!items || !Array.isArray(items) || items.length === 0) {
             return res.status(400).json({ ok: false, msg: 'No items provided for upload' });
@@ -207,16 +224,23 @@ export const bulkUploadProducts = async (req: Request, res: Response) => {
             return res.status(404).json({ ok: false, msg: 'Company not found' });
         }
 
+        // Obtener la sucursal de destino (obligatoria en InventoryItem)
+        const targetBranchId = branchId || (await Branch.findOne({ company: companyId }))?._id;
+        if (!targetBranchId) {
+            return res.status(400).json({ ok: false, msg: 'No se encontró ninguna sucursal activa para esta compañía para registrar el inventario' });
+        }
+
         // 1. Manejo de Categorías
         const categoryMap = new Map<string, mongoose.Types.ObjectId>();
         const uniqueCategoryNames = [...new Set(items.map(item => item.categoryName).filter(Boolean))];
 
         for (const catName of uniqueCategoryNames) {
             // Buscamos si la categoría ya existe para esta compañía
-            // Usamos regex para que sea case-insensitive (ej: "Bebidas" == "bebidas")
+            // Escapamos regex para evitar errores con caracteres especiales como '+'
+            const escapedCatName = catName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             let category = await Category.findOne({ 
                 company: companyId, 
-                name: { $regex: new RegExp('^' + catName + '$', 'i') } 
+                name: { $regex: new RegExp('^' + escapedCatName + '$', 'i') } 
             });
 
             if (!category && autoCreateCategories) {
@@ -254,8 +278,12 @@ export const bulkUploadProducts = async (req: Request, res: Response) => {
                 continue;
             }
 
-            // Buscar si ya existe el item en el inventario de esta compañía
-            const existingInventory = await InventoryItem.findOne({ company: companyId, barCode: item.barCode });
+            // Buscar si ya existe el item en el inventario de esta compañía y sucursal
+            const existingInventory = await InventoryItem.findOne({ 
+                company: companyId, 
+                branch: targetBranchId, 
+                barCode: item.barCode 
+            });
 
             if (existingInventory) {
                 // ACTUALIZAR (UPSERT logic para existentes)
@@ -283,7 +311,7 @@ export const bulkUploadProducts = async (req: Request, res: Response) => {
                             company: companyId,
                             name: item.name,
                             brand: item.brand || 'N/A',
-                            supplier: supplierId,
+                            supplier: supplierId || null,
                             categories: catId ? [catId] : [],
                             isComposite: false
                         }
@@ -294,7 +322,8 @@ export const bulkUploadProducts = async (req: Request, res: Response) => {
                     insertOne: {
                         document: {
                             company: companyId,
-                            supplier: supplierId,
+                            branch: targetBranchId,
+                            supplier: supplierId || null,
                             product: _idProduct,
                             name: item.name,
                             barCode: item.barCode,

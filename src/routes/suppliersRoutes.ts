@@ -11,7 +11,10 @@ import {
     createRestockSchedule,
     getCompanyRestockSchedules,
     updateRestockStatus,
-    deleteRestockSchedule
+    deleteRestockSchedule,
+    createSupplierAgreement,
+    getCompanySupplierAgreements,
+    resolveAgreedCostEndpoint
 } from '../controllers/suppliersController';
 import { verifyToken, validarEmpresaUsuario, validarAdminOrSysAdmin, validarSysAdmin } from '../middleware/jwtMiddleware';
 
@@ -25,6 +28,11 @@ router.get('/', verifyToken, validarSysAdmin, getAllSuppliers);
 
 // Ruta para obtener proveedores de una Company específica
 router.get('/company/:companyId', verifyToken, validarEmpresaUsuario, getCompanySuppliers);
+
+// Endpoints de Acuerdos de Precios (Supplier Agreements)
+router.post('/agreement/:companyId', verifyToken, validarEmpresaUsuario, validarAdminOrSysAdmin, createSupplierAgreement);
+router.get('/agreement/company/:companyId', verifyToken, validarEmpresaUsuario, getCompanySupplierAgreements);
+router.get('/agreement/resolve', verifyToken, resolveAgreedCostEndpoint);
 
 // Endpoints de Reabastecimientos Programados
 router.post('/restock/schedule', verifyToken, createRestockSchedule);

@@ -50,7 +50,7 @@ const deductStockForSimpleItem = async (itemId: string, quantity: number) => {
 };  
 
 // Función para deducir ingredientes para un ítem compuesto
-const deductIngredientsForCompositeItem = async (recipeId: any, quantity: number, branchId: any) => {
+const deductIngredientsForCompositeItem = async (recipeId: any, quantity: number, branchId: any, multiplier: number = 1) => {
   const recipe = await Recipe.findById(recipeId).populate('ingredients.ingredient');
   if (!recipe) throw new Error('Recipe not found');
   for (const recipeIngredient of recipe.ingredients) {
@@ -62,7 +62,7 @@ const deductIngredientsForCompositeItem = async (recipeId: any, quantity: number
       if (!ingredientItem) {
         throw new Error(`Insumo ${(recipeIngredient.ingredient as any).name || 'desconocido'} no está registrado en esta sucursal.`);
       }
-      ingredientItem.stock -= recipeIngredient.quantity * quantity;
+      ingredientItem.stock -= recipeIngredient.quantity * quantity * multiplier;
       if (ingredientItem.stock < 0) {
         throw new Error(`Stock insuficiente de ${ingredientItem.name} en esta sucursal.`);
       }
@@ -85,7 +85,7 @@ const processSale = async (productsSold: any[], branchId: any) => {
     // Verificar si el producto es compuesto y deducir los ingredientes si es necesario
     if (product.isComposite) { 
       if (!product.recipe) throw new Error('Composite product does not have a recipe');
-      await deductIngredientsForCompositeItem(product.recipe, productSold.quantity, branchId);
+      await deductIngredientsForCompositeItem(product.recipe, productSold.quantity, branchId, productSold.multiplier || 1);
     } else {
       // Deducir el stock del ítem simple 
       await deductStockForSimpleItem(item._id.toString(), productSold.quantity);
@@ -205,6 +205,7 @@ export const createSale = async (req: Request, res: Response) => {
           quantity: product.quantity,
           unitPrice: product.unitPrice,
           subtotal,
+          multiplier: product.multiplier || 1,
           modifications: product.modifications.map((mod: any) => ({
             name: mod.name,
             extraPrice: mod.extraPrice

@@ -85,12 +85,14 @@ async function seed() {
 
     // 6. Cashiers
     const users = [];
-    // Cajeros de Sucursal Centro
+    // Cajeros de Sucursal Centro (Seeding 3 active cashiers and 1 deactivated cashier to demonstrate soft deletes)
     for (let i = 1; i <= 4; i++) {
       users.push(await new User({
         username: `cajero${i}`, email: `cajero${i}@centro.com`, password: hashedPassword,
         name: `Cajero Centro ${i}`, role: 'user', companyId: demoCompany._id, branch: branch1._id,
-        permissions: i === 1 ? ['inventory_management'] : []
+        permissions: i === 1 ? ['inventory_management'] : [],
+        active: i !== 4,
+        deactivationReason: i === 4 ? 'Despedido por faltante constante en caja' : ''
       }).save());
     }
 

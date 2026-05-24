@@ -3,11 +3,12 @@ import PhysicalRegister from '../models-mongoose/PhysicalRegister';
 
 export const createPhysicalRegister = async (req: Request, res: Response) => {
   try {
-    const { name, description, companyId } = req.body;
+    const { name, description, companyId, branchId } = req.body;
     const newRegister = new PhysicalRegister({
       name,
       description,
-      company: companyId
+      company: companyId,
+      branch: branchId || undefined
     });
     await newRegister.save();
     res.status(201).json({ ok: true, register: newRegister });
@@ -19,7 +20,14 @@ export const createPhysicalRegister = async (req: Request, res: Response) => {
 export const getPhysicalRegistersByCompany = async (req: Request, res: Response) => {
   try {
     const { companyId } = req.params;
-    const registers = await PhysicalRegister.find({ company: companyId });
+    const { branchId } = req.query;
+    
+    const query: any = { company: companyId };
+    if (branchId && branchId !== 'undefined' && branchId !== 'null' && branchId !== '') {
+      query.branch = branchId;
+    }
+    
+    const registers = await PhysicalRegister.find(query);
     res.status(200).json({ ok: true, registers });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching physical registers', error });

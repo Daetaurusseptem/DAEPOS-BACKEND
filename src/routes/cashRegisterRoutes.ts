@@ -6,7 +6,7 @@ import { validarUserCompany, verifyToken } from '../middleware/jwtMiddleware';
 const router = express.Router();
 
 //ABRIR CAJA
-router.post('/open',verifyToken,validarUserCompany, openCashRegister);
+router.post('/open', verifyToken, openCashRegister);
 
 //REGISTRAR GASTO
 router.post('/expense/:id', verifyToken, addExpense);

@@ -81,14 +81,15 @@ export async function runSeed(alreadyConnected: boolean = true): Promise<void> {
 
     await Branch.findByIdAndUpdate(branch2._id, { manager: branchAdmin2._id });
 
-    // 6. Cashiers - Marked as Demo!
+    // Cajeros de Sucursal Centro (Seeding 3 active cashiers and 1 deactivated cashier to demonstrate soft deletes) - Marked as Demo!
     const users = [];
-    // Cajeros de Sucursal Centro
     for (let i = 1; i <= 4; i++) {
       users.push(await new User({
         username: `cajero${i}`, email: `cajero${i}@centro.com`, password: hashedPassword,
         name: `Cajero Centro ${i}`, role: 'user', companyId: demoCompany._id, branch: branch1._id,
-        permissions: i === 1 ? ['inventory_management'] : [], isDemo: true
+        permissions: i === 1 ? ['inventory_management'] : [], isDemo: true,
+        active: i !== 4,
+        deactivationReason: i === 4 ? 'Despedido por faltante constante en caja' : ''
       }).save());
     }
 

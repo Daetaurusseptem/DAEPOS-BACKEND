@@ -4,6 +4,7 @@ export interface PhysicalRegisterDocument extends Document {
   name: string;
   description?: string;
   company: mongoose.Types.ObjectId;
+  branch?: mongoose.Types.ObjectId;
   isActive: boolean;
   createdAt: Date;
 }
@@ -20,6 +21,11 @@ const physicalRegisterSchema = new Schema<PhysicalRegisterDocument>({
     type: Schema.Types.ObjectId,
     ref: 'Company',
     required: true,
+  },
+  branch: {
+    type: Schema.Types.ObjectId,
+    ref: 'Branch',
+    required: false,
   },
   isActive: {
     type: Boolean,

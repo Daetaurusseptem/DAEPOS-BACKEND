@@ -8,6 +8,7 @@ import Notification from '../models-mongoose/Notification';
 import InventoryItem from '../models-mongoose/InventoryItem';
 import Product from '../models-mongoose/Product';
 import RawMaterial from '../models-mongoose/RawMaterial';
+import SupplierAgreement from '../models-mongoose/SupplierAgreement';
 
 
 // Crear un nuevo proveedor
@@ -323,6 +324,106 @@ export const deleteRestockSchedule = async (req: Request, res: Response) => {
     }
 };
 
+// --- ACUERDOS DE PRECIOS Y PROVEEDORES ---
+
+// Crear un acuerdo de precios
+export const createSupplierAgreement = async (req: Request, res: Response) => {
+    try {
+        const { companyId } = req.params;
+        const { supplier, product, branch, agreedCost, startDate, endDate, minimumOrderQty, notes, status } = req.body;
+
+        const newAgreement = new SupplierAgreement({
+            company: companyId,
+            supplier,
+            product,
+            branch: branch || null,
+            agreedCost,
+            startDate,
+            endDate,
+            minimumOrderQty,
+            notes,
+            status: status || 'active'
+        });
+
+        await newAgreement.save();
+        return res.status(201).json({ ok: true, agreement: newAgreement });
+    } catch (error) {
+        return res.status(400).json({ ok: false, message: error });
+    }
+};
+
+// Obtener acuerdos de precios de la empresa
+export const getCompanySupplierAgreements = async (req: Request, res: Response) => {
+    try {
+        const { companyId } = req.params;
+        const { supplier, product, branch } = req.query;
+
+        let query: any = { company: companyId };
+        if (supplier) query.supplier = supplier;
+        if (product) query.product = product;
+        if (branch !== undefined) query.branch = branch || null;
+
+        const agreements = await SupplierAgreement.find(query)
+            .populate('supplier')
+            .populate('product')
+            .populate('branch');
+
+        return res.status(200).json({ ok: true, agreements });
+    } catch (error) {
+        return res.status(500).json({ ok: false, message: error });
+    }
+};
+
+// Resolver costo pactado en cascada
+export const resolveAgreedCostEndpoint = async (req: Request, res: Response) => {
+    try {
+        const { companyId, product, supplier, branch, date } = req.query;
+
+        if (!companyId || !product || !supplier) {
+            return res.status(400).json({ ok: false, message: 'Faltan parámetros requeridos (companyId, product, supplier)' });
+        }
+
+        const queryDate = date ? new Date(date as string) : new Date();
+
+        // 1. Acuerdo específico por sucursal
+        if (branch) {
+            const branchAgreement = await SupplierAgreement.findOne({
+                company: companyId,
+                product,
+                supplier,
+                branch,
+                status: 'active',
+                startDate: { $lte: queryDate },
+                endDate: { $gte: queryDate }
+            });
+
+            if (branchAgreement) {
+                return res.status(200).json({ ok: true, agreedCost: branchAgreement.agreedCost, level: 'branch', agreement: branchAgreement });
+            }
+        }
+
+        // 2. Acuerdo general
+        const generalAgreement = await SupplierAgreement.findOne({
+            company: companyId,
+            product,
+            supplier,
+            branch: null,
+            status: 'active',
+            startDate: { $lte: queryDate },
+            endDate: { $gte: queryDate }
+        });
+
+        if (generalAgreement) {
+            return res.status(200).json({ ok: true, agreedCost: generalAgreement.agreedCost, level: 'general', agreement: generalAgreement });
+        }
+
+        // 3. Sin acuerdo
+        return res.status(200).json({ ok: true, agreedCost: null, level: 'default' });
+    } catch (error) {
+        return res.status(500).json({ ok: false, message: error });
+    }
+};
+
 export default {
     createSupplier,
     getAllSuppliers,
@@ -332,5 +433,8 @@ export default {
     createRestockSchedule,
     getCompanyRestockSchedules,
     updateRestockStatus,
-    deleteRestockSchedule
+    deleteRestockSchedule,
+    createSupplierAgreement,
+    getCompanySupplierAgreements,
+    resolveAgreedCostEndpoint
 };

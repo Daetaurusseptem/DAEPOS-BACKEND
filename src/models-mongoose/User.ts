@@ -14,6 +14,8 @@ export interface UserDocument extends Document {
   lastLogin? : Date;
   permissions?: string[];
   isDemo?: boolean;
+  active?: boolean;
+  deactivationReason?: string;
 }
 
 // Esquema del modelo de usuario
@@ -62,6 +64,14 @@ const userSchema = new Schema<UserDocument>({
   isDemo: {
     type: Boolean,
     default: false
+  },
+  active: {
+    type: Boolean,
+    default: true
+  },
+  deactivationReason: {
+    type: String,
+    default: ''
   }
   // Define otros campos de usuario según tus necesidades
 });

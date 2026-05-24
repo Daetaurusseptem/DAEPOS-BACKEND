@@ -15,13 +15,14 @@ const CategorySchema = new mongoose.Schema<Category>({
     name: {
         type: String,
         required: true,
-        unique: true,
         trim: true
     },
     description: {
         type: String
     }
 }, { timestamps: true });
+
+CategorySchema.index({ company: 1, name: 1 }, { unique: true });
 
 const Category = mongoose.model('Category', CategorySchema);
 

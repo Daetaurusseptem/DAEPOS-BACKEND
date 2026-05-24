@@ -58,6 +58,7 @@ export const getIngredientsStatistics = async (req: Request, res: Response) => {
           _id: "$name",
           totalStock: { $sum: "$stock" },
           totalValue: { $sum: { $multiply: ["$stock", { $ifNull: ["$costPrice", 0] }] } },
+          measurement: { $first: "$measurement" },
           count: { $sum: 1 }
         }
       },
@@ -72,7 +73,7 @@ export const getIngredientsStatistics = async (req: Request, res: Response) => {
 
 export const getTopSellingProductsByWeek = async (req: Request, res: Response) => {
   try {
-    const { year, week, companyId } = req.query;
+    const { year, week, companyId, branchId } = req.query;
 
     if (!year || !week || !companyId) {
       return res.status(400).json({ message: 'Year, week, and companyId are required' });
@@ -81,15 +82,21 @@ export const getTopSellingProductsByWeek = async (req: Request, res: Response) =
     const startDate = new Date(`${year}-01-01`);
     const endDate = new Date(`${year}-12-31`);
 
+    const matchStage: any = {
+      date: {
+        $gte: startDate,
+        $lte: endDate
+      },
+      company: new mongoose.Types.ObjectId(companyId as string)
+    };
+
+    if (branchId) {
+      matchStage.branch = new mongoose.Types.ObjectId(branchId as string);
+    }
+
     const sales = await Sale.aggregate([
       {
-        $match: {
-          date: {
-            $gte: startDate,
-            $lte: endDate
-          },
-          company: new mongoose.Types.ObjectId(companyId as string)
-        }
+        $match: matchStage
       },
       {
         $addFields: {
@@ -134,7 +141,7 @@ export const getTopSellingProductsByWeek = async (req: Request, res: Response) =
 
 export const getIngredientsStatisticsByWeek = async (req: Request, res: Response) => {
   try {
-    const { year, week, companyId } = req.query;
+    const { year, week, companyId, branchId } = req.query;
 
     if (!year || !week || !companyId) {
       return res.status(400).json({ message: 'Year, week, and companyId are required' });
@@ -143,16 +150,22 @@ export const getIngredientsStatisticsByWeek = async (req: Request, res: Response
     const startDate = new Date(`${year}-01-01`);
     const endDate = new Date(`${year}-12-31`);
 
+    const matchStage: any = {
+      product: { $exists: false },
+      receivedDate: {
+        $gte: startDate,
+        $lte: endDate
+      },
+      company: new mongoose.Types.ObjectId(companyId as string)
+    };
+
+    if (branchId) {
+      matchStage.branch = new mongoose.Types.ObjectId(branchId as string);
+    }
+
     const ingredients = await InventoryItem.aggregate([
       {
-        $match: {
-          product: { $exists: false },
-          receivedDate: {
-            $gte: startDate,
-            $lte: endDate
-          },
-          company: new mongoose.Types.ObjectId(companyId as string)
-        }
+        $match: matchStage
       },
       {
         $addFields: {
@@ -169,6 +182,7 @@ export const getIngredientsStatisticsByWeek = async (req: Request, res: Response
           _id: "$name",
           totalStock: { $sum: "$stock" },
           totalValue: { $sum: { $multiply: ["$stock", { $ifNull: ["$costPrice", 0] }] } },
+          measurement: { $first: "$measurement" },
           count: { $sum: 1 }
         }
       },
@@ -240,7 +254,8 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
     const recentSales = await Sale.find({ ...branchFilter })
       .sort({ date: -1 })
       .limit(5)
-      .populate('user', 'name username');
+      .populate('user', 'name username')
+      .populate('branch', 'name');
 
     res.status(200).json({
       ok: true,

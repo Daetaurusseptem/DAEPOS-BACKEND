@@ -5,6 +5,8 @@ export interface RestockItem {
   itemRef: mongoose.Types.ObjectId; // Referencia dinámica
   quantity: number;
   costPrice: number;
+  agreedCost?: number;
+  varianceNote?: string;
 }
 
 export interface SupplierRestockDocument extends Document {
@@ -27,7 +29,9 @@ const restockItemSchema = new Schema<RestockItem>({
   type: { type: String, enum: ['Product', 'RawMaterial'], required: true },
   itemRef: { type: Schema.Types.ObjectId, refPath: 'items.type', required: true }, // [DINÁMICO]
   quantity: { type: Number, required: true, min: 0 },
-  costPrice: { type: Number, required: true, min: 0 }
+  costPrice: { type: Number, required: true, min: 0 },
+  agreedCost: { type: Number },
+  varianceNote: { type: String }
 });
 
 const supplierRestockSchema = new Schema<SupplierRestockDocument>({

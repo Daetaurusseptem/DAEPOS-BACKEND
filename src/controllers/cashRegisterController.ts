@@ -11,6 +11,12 @@ export const openCashRegister = async (req: Request, res: Response) => {
   try {
     const { user, physicalRegister, initialAmount } = req.body;
     
+    // Validar que el usuario que intenta abrir la caja sea el mismo autenticado
+    const reqWithUid = req as any;
+    if (reqWithUid.uid && user !== reqWithUid.uid) {
+      return res.status(403).json({ message: 'No tienes privilegios para abrir caja para otro usuario' });
+    }
+    
     // 1. Verificar si el usuario ya tiene una caja abierta
     const existingUserShift = await CashRegister.findOne({ user, closed: false });
     if (existingUserShift) {

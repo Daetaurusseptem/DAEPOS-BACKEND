@@ -11,6 +11,7 @@ export interface SaleDocument extends Document {
     quantity: number;
     unitPrice: number;
     subtotal: number;
+    multiplier?: number;
     modifications?: {
       name: string;
       extraPrice: number;
@@ -72,6 +73,10 @@ const saleSchema = new Schema<SaleDocument>({
       subtotal: {
         type: Number,
         required: true,
+      },
+      multiplier: {
+        type: Number,
+        default: 1,
       },
       modifications: [
         {
