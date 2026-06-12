@@ -1,18 +1,42 @@
 
 import express from 'express';
-import { openCashRegister, closeCashRegister, getCashRegisters, hasOpenCashRegister, getOpenCashRegister, getOpenCashRegisterWithSales, getUserCashRegistersByStartDate, getUserCajasByDate, getCajaDetailsById, addExpense, getActiveRegistersByBranch, getCashRegistersHistory } from '../controllers/cashRegisterController';
+import { 
+  openCashRegister, 
+  closeCashRegister, 
+  getCashRegisters, 
+  hasOpenCashRegister, 
+  getOpenCashRegister, 
+  getOpenCashRegisterWithSales, 
+  getUserCashRegistersByStartDate, 
+  getUserCajasByDate, 
+  getCajaDetailsById, 
+  addExpense, 
+  getActiveRegistersByBranch, 
+  getCashRegistersHistory,
+  registerCorteXLog,
+  verifyExpenseDeposit,
+  getUserCashRegistersHistory
+} from '../controllers/cashRegisterController';
 import { validarUserCompany, verifyToken } from '../middleware/jwtMiddleware';
 
 const router = express.Router();
 
 //ABRIR CAJA
-router.post('/open', verifyToken, openCashRegister);
+import { checkActiveRegistersLimit } from '../middleware/enforceTierLimits';
+
+router.post('/open', verifyToken, checkActiveRegistersLimit, openCashRegister);
 
 //REGISTRAR GASTO
 router.post('/expense/:id', verifyToken, addExpense);
 
 //CERRAR CAJA
 router.post('/close/:id', verifyToken, closeCashRegister);
+
+// REGISTRAR HUELLA DE CORTE X
+router.post('/corte-x/:id', verifyToken, registerCorteXLog);
+
+// VERIFICAR/CONCILIAR DEPÓSITO POR SUPERVISOR
+router.patch('/:id/expenses/:expenseId/verify', verifyToken, verifyExpenseDeposit);
 
 // MONITOREO Y AUDITORÍA POR SUCURSAL
 router.get('/active/branch/:branchId', verifyToken, getActiveRegistersByBranch);
@@ -35,8 +59,11 @@ router.get('/open-with-sales/:userId', verifyToken, getOpenCashRegisterWithSales
 router.get('/user/:userId', getUserCashRegistersByStartDate);
 
 
-// Ruta para obtener todas las cajas de un usuario agrupadas por fechas
+// Ruta para obtener todas las cajas de un usuario agrupadas por fechas (deprecated)
 router.get('/user/:userId/cajas', verifyToken, getUserCajasByDate);
+
+// Ruta para obtener todo el historial de cajas de un usuario paginado y ordenado
+router.get('/user/:userId/history', verifyToken, getUserCashRegistersHistory);
 
 // Ruta para obtener cajas específicas de un usuario en una fecha específica
 router.get('/user/:userId/cajas/:startDate', verifyToken, getUserCashRegistersByStartDate);

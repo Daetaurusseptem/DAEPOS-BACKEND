@@ -4,6 +4,8 @@ import PhysicalRegister from '../models-mongoose/PhysicalRegister';
 import Sale from '../models-mongoose/Sale';
 import User from '../models-mongoose/User';
 import Company from '../models-mongoose/Company';
+import Branch from '../models-mongoose/Branch';
+import PendingOrder from '../models-mongoose/PendingOrder';
 import moment from 'moment';
 
 // Registrar el dinero inicial y abrir caja (Turno)
@@ -41,21 +43,17 @@ export const openCashRegister = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'El cajero debe pertenecer a una sucursal para poder abrir caja' });
     }
 
+    const branchDoc = await Branch.findById(branchId);
+    if (!branchDoc || branchDoc.isActive === false) {
+      return res.status(403).json({ message: 'La sucursal se encuentra suspendida o inactiva. Operación denegada.' });
+    }
+
     const company = await Company.findById(userDoc.companyId);
     if (!company) {
       return res.status(404).json({ message: 'Empresa no encontrada' });
     }
 
-    const activeShiftsCount = await CashRegister.countDocuments({ 
-      company: userDoc.companyId, 
-      closed: false 
-    });
-
-    if (activeShiftsCount >= company.maxActiveRegisters) {
-      return res.status(403).json({ 
-        message: `Límite de cajas alcanzado (${company.maxActiveRegisters}). Cierra un turno activo para abrir uno nuevo.` 
-      });
-    }
+    // Limit check is now handled by checkActiveRegistersLimit middleware
 
     // 4. Crear el turno
     const newCashRegister = new CashRegister({
@@ -80,7 +78,7 @@ export const openCashRegister = async (req: Request, res: Response) => {
 export const closeCashRegister = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { actualAmount, notes } = req.body;
+    const { actualAmount, notes, remanenteFloatAmount = 0, depositWithdrawalAmount = 0 } = req.body;
 
     const cashRegister = await CashRegister.findById(id);
     if (!cashRegister) {
@@ -91,8 +89,23 @@ export const closeCashRegister = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Este turno ya ha sido cerrado' });
     }
 
+    // Capa 1: Validación Estricta Anti-Huérfanos
+    const hasPendingOrders = await PendingOrder.exists({
+      cashRegister: cashRegister._id,
+      $or: [
+        { kitchenStatus: { $nin: ['delivered', 'canceled'] } },
+        { paymentStatus: { $in: ['unpaid', 'partial'] } }
+      ]
+    });
+
+    if (hasPendingOrders) {
+      return res.status(400).json({ message: 'No puedes cerrar la caja. Tienes comandas pendientes de preparar o sin liquidar completamente en este turno. Por favor cóbralas o cancélalas primero.' });
+    }
+
     // El expectedAmount ya se va actualizando en cada venta
     cashRegister.actualAmount = actualAmount;
+    cashRegister.remanenteFloatAmount = remanenteFloatAmount;
+    cashRegister.depositWithdrawalAmount = depositWithdrawalAmount;
     cashRegister.difference = actualAmount - cashRegister.expectedAmount;
     cashRegister.notes = notes || '';
     cashRegister.endDate = new Date();
@@ -105,22 +118,65 @@ export const closeCashRegister = async (req: Request, res: Response) => {
   }
 };
 
+// =====================================================================================
+// HELPER PARA AUTO-LIMPIEZA Y SUSPENSIONES
+// =====================================================================================
+export const forceCloseUserCashRegisters = async (userId: string | any) => {
+  try {
+    const openRegisters = await CashRegister.find({ user: userId, closed: false });
+    for (const register of openRegisters) {
+      register.closed = true;
+      register.endDate = new Date();
+      register.actualAmount = 0;
+      register.difference = 0 - register.expectedAmount;
+      register.notes = (register.notes || '') + '\n[CIERRE FORZOSO]: El sistema cerró esta caja automáticamente porque el usuario fue suspendido (o su sucursal fue inhabilitada). El conteo físico se forzó a $0.00.';
+      await register.save();
+    }
+  } catch (error) {
+    console.error(`Error forzando cierre de caja para el usuario ${userId}:`, error);
+  }
+};
+
+export const forceCloseBranchCashRegisters = async (branchId: string | any) => {
+  try {
+    const openRegisters = await CashRegister.find({ branch: branchId, closed: false });
+    for (const register of openRegisters) {
+      register.closed = true;
+      register.endDate = new Date();
+      register.actualAmount = 0;
+      register.difference = 0 - register.expectedAmount;
+      register.notes = (register.notes || '') + '\n[CIERRE FORZOSO]: El sistema cerró esta caja automáticamente porque la sucursal fue suspendida por downgrade. El conteo físico se forzó a $0.00.';
+      await register.save();
+    }
+  } catch (error) {
+    console.error(`Error forzando cierre de caja para sucursal ${branchId}:`, error);
+  }
+};
+
 // Registrar un gasto de caja
 export const addExpense = async (req: Request, res: Response) => {
   try {
     const { id } = req.params; // ID del CashRegister (Turno)
-    const { amount, reason, type = 'expense' } = req.body;
+    const { amount, reason, type = 'expense', depositReference = '' } = req.body;
 
     const cashRegister = await CashRegister.findById(id);
     if (!cashRegister || cashRegister.closed) {
       return res.status(404).json({ message: 'Turno activo no encontrado' });
     }
 
+    if (amount > cashRegister.expectedAmount) {
+      return res.status(400).json({ 
+        message: `No hay suficiente efectivo disponible en caja para realizar este retiro. Efectivo disponible: $${cashRegister.expectedAmount.toFixed(2)}` 
+      });
+    }
+
     cashRegister.expenses.push({
       amount,
       reason,
       type,
-      timestamp: new Date()
+      timestamp: new Date(),
+      depositReference,
+      auditStatus: type === 'withdrawal' ? 'pending' : 'verified'
     });
 
     // Restar del dinero esperado en caja
@@ -130,6 +186,59 @@ export const addExpense = async (req: Request, res: Response) => {
     res.status(200).json({ ok: true, cashRegister });
   } catch (error) {
     res.status(500).json({ message: 'Error adding expense', error });
+  }
+};
+
+// Registrar huella de Corte X
+export const registerCorteXLog = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { user, expectedAmount } = req.body;
+
+    const cashRegister = await CashRegister.findById(id);
+    if (!cashRegister || cashRegister.closed) {
+      return res.status(404).json({ message: 'Turno activo no encontrado o ya cerrado' });
+    }
+
+    cashRegister.cortesX.push({
+      timestamp: new Date(),
+      generatedBy: user,
+      expectedAmount: expectedAmount
+    });
+
+    await cashRegister.save();
+    res.status(200).json({ ok: true, message: 'Huella de Corte X registrada correctamente' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error registering Corte X log', error });
+  }
+};
+
+// Verificar/conciliar depósito por supervisor
+export const verifyExpenseDeposit = async (req: Request, res: Response) => {
+  try {
+    const { id, expenseId } = req.params;
+    const { auditStatus } = req.body; // 'verified' | 'rejected'
+    const reqWithUid = req as any;
+    const supervisorId = reqWithUid.uid;
+
+    const cashRegister = await CashRegister.findById(id);
+    if (!cashRegister) {
+      return res.status(404).json({ message: 'Turno no encontrado' });
+    }
+
+    const expense = (cashRegister.expenses as any).id(expenseId);
+    if (!expense) {
+      return res.status(404).json({ message: 'Retiro no encontrado en este turno' });
+    }
+
+    expense.auditStatus = auditStatus;
+    expense.auditedBy = supervisorId;
+    expense.auditedAt = new Date();
+
+    await cashRegister.save();
+    res.status(200).json({ ok: true, message: `Estatus de depósito actualizado a ${auditStatus}`, cashRegister });
+  } catch (error) {
+    res.status(500).json({ message: 'Error verifying deposit', error });
   }
 };
 
@@ -318,5 +427,46 @@ export const getSalesByCashRegister = async (req: Request, res: Response) => {
     res.status(200).json({ ok: true, sales });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching sales for cash register', error });
+  }
+};
+
+export const getUserCashRegistersHistory = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const { date, page = 1, limit = 10 } = req.query;
+
+    const query: any = { user: userId };
+
+    if (date) {
+      const startOfDay = moment.utc(date as string).startOf('day').toDate();
+      const endOfDay = moment.utc(date as string).endOf('day').toDate();
+      query.startDate = { $gte: startOfDay, $lte: endOfDay };
+    }
+
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+    const skip = (pageNum - 1) * limitNum;
+
+    const cashRegisters = await CashRegister.find(query)
+      .populate('user', 'name username email img')
+      .populate('physicalRegister', 'name description')
+      .populate('branch', 'name')
+      .sort({ startDate: -1 })
+      .skip(skip)
+      .limit(limitNum);
+
+    const total = await CashRegister.countDocuments(query);
+    const totalPages = Math.ceil(total / limitNum);
+
+    res.status(200).json({
+      ok: true,
+      cashRegisters,
+      total,
+      page: pageNum,
+      totalPages,
+      limit: limitNum
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching user cash registers history', error });
   }
 };

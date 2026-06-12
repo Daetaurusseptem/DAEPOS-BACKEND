@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
+import mongoose from 'mongoose';
 import Company, { CompanyDocument } from '../models-mongoose/Company';
 import User from '../models-mongoose/User';
+import Branch from '../models-mongoose/Branch';
 
 
 // Crear una nueva Company
@@ -32,7 +34,7 @@ export const createEmpresa = async (req: Request, res: Response): Promise<Respon
 // Obtener todas las companies
 export const getAllEmpresas = async (req: Request, res: Response): Promise<Response> => {
     try {
-        const companies: CompanyDocument[] = await Company.find();
+        const companies: CompanyDocument[] = await Company.find({ isActive: true });
         return res.status(200).json({
             ok: true,
             companies
@@ -65,10 +67,10 @@ export const getCompaniesPages = async (req: Request, res: Response): Promise<Re
         const skip = (page - 1) * limit;
 
         // Obtener datos paginados
-        const companies: CompanyDocument[] = await Company.find().skip(skip).limit(limit);
+        const companies: CompanyDocument[] = await Company.find({ isActive: true }).skip(skip).limit(limit);
 
         // Contar el total de documentos para calcular el total de páginas
-        const total = await Company.countDocuments();
+        const total = await Company.countDocuments({ isActive: true });
         const totalPages = Math.ceil(total / limit);
 
         // Devolver resultados paginados
@@ -126,16 +128,56 @@ export const updateEmpresa = async (req: Request, res: Response) => {
     }
 };
 
-// Eliminar una Company
+// Eliminar una Company (Soft Delete en cascada)
 export const deleteEmpresa = async (req: Request, res: Response) => {
+    const isProd = process.env.NODE_ENV === 'production';
+    const session = isProd ? await mongoose.startSession() : null;
+    if (session) session.startTransaction();
+
     try {
-        const company: CompanyDocument | null = await Company.findByIdAndDelete(req.params.id);
+        const companyId = req.params.id;
+        
+        // 1. Desactivar Empresa
+        const company = await Company.findByIdAndUpdate(
+            companyId,
+            { isActive: false },
+            { new: true, session: session || undefined }
+        );
+
         if (!company) {
+            if (session) {
+                await session.abortTransaction();
+                session.endSession();
+            }
             return res.status(404).json({ message: 'Company no encontrada' });
         }
-        return res.status(200).json({ message: 'Company eliminada' });
+
+        // 2. Desactivar Sucursales asociadas
+        await Branch.updateMany(
+            { company: companyId },
+            { isActive: false },
+            session ? { session } : undefined
+        );
+
+        // 3. Desactivar Usuarios asociados
+        await User.updateMany(
+            { companyId: companyId },
+            { state: false }, // User model uses 'state' for active status
+            session ? { session } : undefined
+        );
+
+        if (session) {
+            await session.commitTransaction();
+            session.endSession();
+        }
+
+        return res.status(200).json({ ok: true, message: 'Company y dependencias desactivadas (Soft Delete)' });
     } catch (error) {
+        if (session) {
+            await session.abortTransaction();
+            session.endSession();
+        }
         console.error('Error al eliminar la Company:', error);
-        return res.status(500).json({ error: 'Error al eliminar la Company' });
+        return res.status(500).json({ error: 'Error al desactivar la Company' });
     }
 };

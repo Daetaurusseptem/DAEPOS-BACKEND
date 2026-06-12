@@ -18,7 +18,10 @@ export interface InventoryItemDocument extends Document {
     name: string;
     extraPrice: number;
     isExclusive?: boolean;
+    rawMaterial?: mongoose.Types.ObjectId;
+    quantityToDeduct?: number;
   }[];
+  lowStockThreshold?: number; // Límite para disparar alertas de stock crítico
 }
 
 const inventoryItemSchema = new Schema<InventoryItemDocument>({
@@ -44,8 +47,11 @@ const inventoryItemSchema = new Schema<InventoryItemDocument>({
       name: { type: String, required: true },
       extraPrice: { type: Number, required: true },
       isExclusive: { type: Boolean, default: false },
+      rawMaterial: { type: Schema.Types.ObjectId, ref: 'RawMaterial', required: false },
+      quantityToDeduct: { type: Number, default: 0 }
     },
   ],
+  lowStockThreshold: { type: Number, default: 5 }
 });
 
 export default mongoose.model<InventoryItemDocument>('InventoryItem', inventoryItemSchema);

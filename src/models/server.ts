@@ -3,6 +3,8 @@ import mongoose from 'mongoose';
 import bodyParser from 'body-parser';
 import cors from 'cors';
 import path from 'path';
+import http from 'http';
+import { initSocket } from '../socket';
 import SystemError from '../models-mongoose/SystemError';
 import User from '../models-mongoose/User';
 import demoBlocker from '../middleware/demoMiddleware';
@@ -30,13 +32,20 @@ import notificationRoutes from '../routes/notificationRoutes';
 import customerRoutes from '../routes/customerRoutes';
 import promotionRoutes from '../routes/promotionRoutes';
 import sysadminRoutes from '../routes/sysadminRoutes';
+import pendingOrderRoutes from '../routes/pendingOrderRoutes';
+import manualPaymentRoutes from '../routes/manualPaymentRoutes';
+import { stripeWebhook } from '../controllers/subscriptionsController';
+import { runAutoCleanup } from '../controllers/cleanupController';
 
 export class Server {
   private app: Application;
   private port: number;
+  private httpServer: http.Server;
 
   constructor() {
     this.app = express();
+    this.httpServer = http.createServer(this.app);
+    initSocket(this.httpServer);
     this.connectToDatabase();
     this.port = parseInt(process.env.PORT || '3000', 10);
 
@@ -46,6 +55,9 @@ export class Server {
   }
 
   private config(): void {
+    // Webhook de Stripe (debe recibir body crudo antes de bodyParser.json)
+    this.app.post('/api/subs/webhook', express.raw({ type: 'application/json' }), stripeWebhook);
+
     // Configuración de middlewares
     this.app.use(bodyParser.json({ limit: '50mb' }));
     this.app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
@@ -59,6 +71,9 @@ export class Server {
   }
 
   private routes(): void {
+    // Rutas del Sistema Abiertas (Ej. Webhooks / Cron)
+    this.app.get('/api/system/cleanup', runAutoCleanup);
+
     // Global Demo Blocker Guard to protect write operations from demo accounts
     this.app.use(demoBlocker);
 
@@ -85,6 +100,8 @@ export class Server {
     this.app.use('/api/customers', customerRoutes);
     this.app.use('/api/promotions', promotionRoutes);
     this.app.use('/api/sysadmin', sysadminRoutes);
+    this.app.use('/api/pending-orders', pendingOrderRoutes);
+    this.app.use('/api/manual-payments', manualPaymentRoutes);
 
     // SPA routing fallback - serve index.html for non-api routes in production
     this.app.get('*', (req, res, next) => {
@@ -155,8 +172,14 @@ export class Server {
   }
 
   private start(): void {
-    this.app.listen(this.port, '0.0.0.0', () => {
+    this.httpServer.listen(this.port, '0.0.0.0', () => {
       console.log(`Server is running on port ${this.port}`);
+      
+      // Auto-Cleanup Fallback: Ejecuta la limpieza de cajas/comandas viejas cada hora
+      setInterval(() => {
+        console.log('[CRON] Ejecutando Auto-Limpieza programada...');
+        runAutoCleanup();
+      }, 60 * 60 * 1000);
     });
   }
 }

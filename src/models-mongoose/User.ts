@@ -8,7 +8,7 @@ export interface UserDocument extends Document {
   email: string;
   password: string;
   name: string;
-  role: 'admin' | 'user' | 'sysadmin' | 'companyAdmin';
+  role: 'admin' | 'user' | 'sysadmin' | 'companyAdmin' | 'kitchen';
   branch?: mongoose.Types.ObjectId;
   img? : string;
   lastLogin? : Date;
@@ -42,7 +42,7 @@ const userSchema = new Schema<UserDocument>({
   },
   role: {  
     type: String,
-    enum: ['admin', 'user','sysadmin', 'companyAdmin'],
+    enum: ['admin', 'user','sysadmin', 'companyAdmin', 'kitchen'],
     default: 'user',
     required: true,
   },

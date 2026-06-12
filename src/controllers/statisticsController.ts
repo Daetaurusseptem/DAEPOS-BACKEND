@@ -238,10 +238,79 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
     ]);
 
     // 2. Low Stock Count
-    const lowStockCount = await InventoryItem.countDocuments({
+    // a) Get all inventory items linked to a product
+    const inventoryItems = await InventoryItem.find({
       ...branchFilter,
-      stock: { $lt: 5 },
       product: { $exists: true, $ne: null }
+    })
+      .populate({
+        path: 'product',
+        match: { isComposite: true }, // Only populate composite products to save memory
+        populate: {
+          path: 'recipe',
+          model: 'Recipe'
+        }
+      })
+      .select('stock product branch lowStockThreshold')
+      .lean();
+
+    // b) Get all raw materials stock to calculate theoretical stock for composites
+    const rawMaterialsStock = await InventoryItem.find({
+      company: companyObjectId,
+      rawMaterial: { $exists: true }
+    }).select('stock rawMaterial branch').lean();
+
+    const rmStockMap: Record<string, number> = {};
+    rawMaterialsStock.forEach(rm => {
+      const bId = rm.branch ? rm.branch.toString() : 'global';
+      const rmId = rm.rawMaterial ? rm.rawMaterial.toString() : '';
+      if (rmId) {
+        const key = `${bId}-${rmId}`;
+        rmStockMap[key] = (rmStockMap[key] || 0) + rm.stock;
+      }
+    });
+
+    let lowStockCount = 0;
+
+    inventoryItems.forEach((item: any) => {
+      const threshold = item.lowStockThreshold !== undefined ? item.lowStockThreshold : 5;
+
+      // Si item.product viene populateado, significa que es isComposite: true
+      if (item.product && item.product.isComposite) {
+        let theoreticalStock = 0;
+        if (item.product.recipe && item.product.recipe.sizes && item.product.recipe.sizes.length > 0) {
+          const recipe = item.product.recipe;
+          const targetSize = recipe.sizes[0]; // Usamos la receta por defecto
+          
+          if (targetSize && targetSize.ingredients) {
+            let maxYield = Infinity;
+            const bId = item.branch ? (item.branch._id || item.branch).toString() : 'global';
+
+            targetSize.ingredients.forEach((ing: any) => {
+              const reqQty = ing.quantity;
+              const rmId = ing.ingredient.toString();
+              const key = `${bId}-${rmId}`;
+              const currentStock = rmStockMap[key] || 0;
+              
+              if (reqQty > 0) {
+                 const possible = Math.floor(currentStock / reqQty);
+                 if (possible < maxYield) maxYield = possible;
+              }
+            });
+            
+            theoreticalStock = maxYield === Infinity ? 0 : maxYield;
+          }
+        }
+        
+        if (theoreticalStock < threshold) {
+          lowStockCount++;
+        }
+      } else {
+        // Es un producto simple
+        if (item.stock < threshold) {
+          lowStockCount++;
+        }
+      }
     });
 
     // 3. Active Registers

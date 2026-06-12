@@ -18,7 +18,7 @@ const productSchema = new Schema<ProductDocument>({
   description: { type: String },
   brand: { type: String, required: true },
   img: { type: String },
-  supplier: { type: Schema.Types.ObjectId, ref: 'Supplier', required: true },
+  supplier: { type: Schema.Types.ObjectId, ref: 'Supplier', required: false },
   company: { type: Schema.Types.ObjectId, ref: 'Company', required: true },
   categories: [{ type: Schema.Types.ObjectId, ref: 'Category', required: true }],
   isComposite: { type: Boolean, required: true },

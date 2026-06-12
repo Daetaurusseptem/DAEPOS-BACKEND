@@ -63,7 +63,11 @@ export async function runSeed(alreadyConnected: boolean = true): Promise<void> {
 
     const branch2 = await new Branch({
       name: 'Sucursal Norte', address: 'Plaza Norte L4', tel: '555-0002',
-      email: 'norte@superpremium.com', company: demoCompany._id, saleType: 'hospitality'
+      email: 'norte@superpremium.com', company: demoCompany._id, saleType: 'hospitality',
+      kitchenSettings: {
+        enableKitchenModule: true,
+        bypassKitchenDoubleCheck: false
+      }
     }).save();
 
     // 5. Branch Admins (Managers) - Marked as Demo!
@@ -100,6 +104,12 @@ export async function runSeed(alreadyConnected: boolean = true): Promise<void> {
         name: `Cajero Norte ${i}`, role: 'user', companyId: demoCompany._id, branch: branch2._id, isDemo: true
       }).save());
     }
+
+    // 6b. Cocineros de Cocina (KDS)
+    await new User({
+      username: 'cocinero1', email: 'cocinero1@norte.com', password: hashedPassword,
+      name: 'Chef Ejecutivo Carlos', role: 'kitchen', companyId: demoCompany._id, branch: branch2._id, isDemo: true
+    }).save();
 
     // 4. Categorías
     const catNames = ['Bebidas', 'Snacks', 'Limpieza', 'Frutas', 'Carnes', 'Lácteos', 'Panadería', 'Hogar', 'Mascotas', 'Cuidado Personal'];
@@ -270,11 +280,25 @@ export async function runSeed(alreadyConnected: boolean = true): Promise<void> {
 
     // Crear Receta de Capuccino (Usando insumos maestros)
     const capuccinoRecipe = await new Recipe({
-      name: 'Receta de Capuccino', description: 'Capuccino tradicional 8oz',
+      name: 'Receta de Capuccino', description: 'Capuccino tradicional',
       company: demoCompany._id,
-      ingredients: [
-        { ingredient: lecheRM._id, quantity: 250 },
-        { ingredient: cafeRM._id, quantity: 15 }
+      sizes: [
+        {
+          name: 'Chico (8oz)',
+          priceModifier: 0,
+          ingredients: [
+            { ingredient: lecheRM._id, quantity: 250 },
+            { ingredient: cafeRM._id, quantity: 15 }
+          ]
+        },
+        {
+          name: 'Grande (16oz)',
+          priceModifier: 15,
+          ingredients: [
+            { ingredient: lecheRM._id, quantity: 400 },
+            { ingredient: cafeRM._id, quantity: 25 }
+          ]
+        }
       ]
     }).save();
 
@@ -282,7 +306,6 @@ export async function runSeed(alreadyConnected: boolean = true): Promise<void> {
     const capuccinoProduct = await new Product({
       name: 'Café Capuccino', brand: 'DaePoint Cafe', isComposite: true,
       description: 'Capuccino caliente con espuma de leche sedosa y espresso premium',
-      supplier: suppliers[0]._id,
       categories: [categories[0]._id], // Bebidas
       company: demoCompany._id,
       recipe: capuccinoRecipe._id

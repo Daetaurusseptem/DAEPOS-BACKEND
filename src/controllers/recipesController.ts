@@ -45,7 +45,7 @@ export const getCompanyRecipes =async (req: Request, res: Response) => {
         if(!company){
             return res.status(404).json ({ok:false, message: 'Esa compañia no existe'});
         }
-        const recipes = await Recipe.find({company:companyId}).populate('ingredients.ingredient');
+        const recipes = await Recipe.find({company:companyId}).populate('sizes.ingredients.ingredient');
         res.status(200).json({ok:true, recipes: recipes});
 
     }catch (error) {
@@ -55,7 +55,7 @@ export const getCompanyRecipes =async (req: Request, res: Response) => {
 
 export const getByIdRecipes = async (req: Request, res: Response) => {
     try {
-        const recipe = await Recipe.findById(req.params.recipeId).populate('ingredients.ingredient');
+        const recipe = await Recipe.findById(req.params.recipeId).populate('sizes.ingredients.ingredient');
         if (!recipe) {
             return res.status(404).json({ ok: false, message: 'Receta inexistente' });
         }

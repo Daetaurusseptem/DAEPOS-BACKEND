@@ -5,6 +5,16 @@ export interface CashExpense {
   reason: string;
   type: 'withdrawal' | 'expense';
   timestamp: Date;
+  depositReference?: string; // Reference of Safe Drop
+  auditStatus: 'pending' | 'verified' | 'rejected';
+  auditedBy?: mongoose.Types.ObjectId;
+  auditedAt?: Date;
+}
+
+export interface CorteXLog {
+  timestamp: Date;
+  generatedBy: mongoose.Types.ObjectId;
+  expectedAmount: number;
 }
 
 export interface CashRegisterDocument extends Document {
@@ -22,6 +32,8 @@ export interface CashRegisterDocument extends Document {
   // Totals reported by the cashier
   actualAmount?: number; // Counted physically at closing
   difference?: number; // actual - expected
+  remanenteFloatAmount?: number; // float left for change
+  depositWithdrawalAmount?: number; // deposit amount
   
   payments: {
     cash: number;
@@ -30,6 +42,7 @@ export interface CashRegisterDocument extends Document {
   };
   expenses: CashExpense[];
   sales: mongoose.Types.ObjectId[];
+  cortesX: CorteXLog[];
   notes: string;
   closed: boolean;
 }
@@ -38,7 +51,17 @@ const cashExpenseSchema = new Schema<CashExpense>({
   amount: { type: Number, required: true, min: 0 },
   reason: { type: String, required: true },
   type: { type: String, required: true, enum: ['withdrawal', 'expense'], default: 'expense' },
-  timestamp: { type: Date, default: Date.now }
+  timestamp: { type: Date, default: Date.now },
+  depositReference: { type: String, default: '' },
+  auditStatus: { type: String, required: true, enum: ['pending', 'verified', 'rejected'], default: 'pending' },
+  auditedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+  auditedAt: { type: Date }
+});
+
+const corteXSchema = new Schema<CorteXLog>({
+  timestamp: { type: Date, default: Date.now },
+  generatedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  expectedAmount: { type: Number, required: true }
 });
 
 const cashRegisterSchema: Schema = new Schema({
@@ -88,6 +111,14 @@ const cashRegisterSchema: Schema = new Schema({
     type: Number,
     default: 0
   },
+  remanenteFloatAmount: {
+    type: Number,
+    default: 0
+  },
+  depositWithdrawalAmount: {
+    type: Number,
+    default: 0
+  },
   payments: {
     cash: { type: Number, required: true, default: 0, min: 0 },
     credit: { type: Number, required: true, default: 0, min: 0 },
@@ -98,6 +129,7 @@ const cashRegisterSchema: Schema = new Schema({
     type: Schema.Types.ObjectId,
     ref: 'Sale',
   }],
+  cortesX: [corteXSchema],
   notes: {
     type: String,
     default: ''

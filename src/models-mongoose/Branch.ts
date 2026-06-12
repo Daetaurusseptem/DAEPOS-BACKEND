@@ -15,8 +15,16 @@ export interface BranchDocument extends Document {
         pointsRedeemRate: number;
         maxRedemptionPercentage: number;
     };
+    kitchenSettings?: {
+        enableKitchenModule: boolean;
+        bypassKitchenDoubleCheck: boolean;
+    };
     createdAt: Date;
     isActive: boolean;
+    enableVirtualKeyboard: boolean;
+    shiftSettings?: {
+        maxShiftDurationHours: number;
+    };
 }
 
 const branchSchema = new Schema<BranchDocument>({
@@ -50,6 +58,10 @@ const branchSchema = new Schema<BranchDocument>({
         pointsRedeemRate: { type: Number, default: 0.10 },
         maxRedemptionPercentage: { type: Number, default: 100 }
     },
+    kitchenSettings: {
+        enableKitchenModule: { type: Boolean, default: false },
+        bypassKitchenDoubleCheck: { type: Boolean, default: true }
+    },
     createdAt: {
         type: Date,
         default: Date.now,
@@ -57,6 +69,13 @@ const branchSchema = new Schema<BranchDocument>({
     isActive: {
         type: Boolean,
         default: true,
+    },
+    enableVirtualKeyboard: {
+        type: Boolean,
+        default: false,
+    },
+    shiftSettings: {
+        maxShiftDurationHours: { type: Number, default: 12 }
     }
 });
 

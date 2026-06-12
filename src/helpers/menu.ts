@@ -5,13 +5,14 @@ export const getMenuFrontEnd = (role = 'admin', permissions: string[] = []) => {
     menu.push(
       {
         id: 'control-corporativo',
-        title: 'Torre de Control',
+        title: 'Panel de Control',
         icon: 'bi bi-building',
         submenu: [
           { title: 'Dashboard', url: 'admin', icon: 'bi bi-speedometer2' },
           { title: 'Sucursales', url: 'admin/branches', icon: 'bi bi-geo-alt-fill' },
           { title: 'Monitoreo de Cajas', url: 'admin/live-registers', icon: 'bi bi-broadcast' },
           { title: 'Bitácora de Cajas', url: 'admin/cajas-historial', icon: 'bi bi-clock-history' },
+          { title: 'Facturación y Plan', url: 'admin/billing', icon: 'bi bi-credit-card-fill' },
         ]
       },
       {
@@ -105,9 +106,26 @@ export const getMenuFrontEnd = (role = 'admin', permissions: string[] = []) => {
       title: 'Control Global SaaS',
       icon: 'bi bi-shield-lock-fill',
       submenu: [
-        { title: 'Torre de Control', url: 'sysadmin/dashboard', icon: 'bi bi-cpu-fill' },
+        { title: 'Panel de Telemetría', url: 'sysadmin/dashboard', icon: 'bi bi-cpu-fill' },
+        { title: 'Auditoría Transaccional', url: 'sysadmin/transactions', icon: 'bi bi-search' },
+        { title: 'Auditoría de Logs', url: 'sysadmin/logs', icon: 'bi bi-terminal' },
+        { title: 'Monitor de Suscripciones', url: 'sysadmin/subscriptions', icon: 'bi bi-wallet2' },
+        { title: 'Validación de Pagos', url: 'sysadmin/manual-payments', icon: 'bi bi-cash-coin' },
+        { title: 'Tiers & Planes (SaaS)', url: 'sysadmin/tiers', icon: 'bi bi-layers-fill' },
+        { title: 'Ajustes Globales', url: 'sysadmin/global-settings', icon: 'bi bi-gear-fill' },
         { title: 'Empresas', url: 'sysadmin/companies', icon: 'bi bi-building-fill' },
         { title: 'Usuarios Maestros', url: 'sysadmin/users', icon: 'bi bi-people-fill' },
+      ]
+    });
+  }
+
+  if (role === 'kitchen') {
+    menu.push({
+      id: 'cocina-kds',
+      title: 'Cocina & KDS',
+      icon: 'bi bi-fire text-danger',
+      submenu: [
+        { title: 'Pantalla KDS', url: 'kitchen/kds', icon: 'bi bi-display-fill' },
       ]
     });
   }

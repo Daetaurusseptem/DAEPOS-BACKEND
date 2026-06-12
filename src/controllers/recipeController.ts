@@ -16,7 +16,7 @@ export const createRecipe = async (req: Request, res: Response) => {
 
 export const getRecipes = async (req: Request, res: Response) => {
   try {
-    const recipes = await Recipe.find().populate('ingredients.ingredient');
+    const recipes = await Recipe.find().populate('sizes.ingredients.ingredient');
     res.status(200).json(recipes);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching recipes', error });
@@ -25,14 +25,26 @@ export const getRecipes = async (req: Request, res: Response) => {
 
 export const consumeIngredients = async (req: Request, res: Response) => {
   try {
-    const { recipeId, quantity } = req.body;
+    const { recipeId, quantity, sizeName } = req.body;
 
-    const recipe = await Recipe.findById(recipeId).populate('ingredients.ingredient');
+    const recipe = await Recipe.findById(recipeId).populate('sizes.ingredients.ingredient');
     if (!recipe) {
       return res.status(404).json({ message: 'Recipe not found' });
     }
 
-    for (const recipeIngredient of recipe.ingredients) {
+    let targetSize;
+    if (sizeName) {
+       targetSize = recipe.sizes.find(s => s.name === sizeName);
+    }
+    if (!targetSize && recipe.sizes && recipe.sizes.length > 0) {
+       targetSize = recipe.sizes[0];
+    }
+
+    if (!targetSize || !targetSize.ingredients) {
+       return res.status(400).json({ message: 'La receta no tiene ingredientes configurados para el tamaño especificado.' });
+    }
+
+    for (const recipeIngredient of targetSize.ingredients) {
       const inventoryItem = await InventoryItem.findById(recipeIngredient.ingredient._id);
       if (inventoryItem) {
         inventoryItem.stock -= recipeIngredient.quantity * quantity;

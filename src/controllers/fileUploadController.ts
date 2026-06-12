@@ -5,6 +5,7 @@ import path from 'path';
 import User from "../models-mongoose/User";
 import Company from "../models-mongoose/Company";
 import Product from "../models-mongoose/Product";
+import ManualPayment from "../models-mongoose/ManualPayment";
 
 // Configurar multer para manejar la subida en memoria
 const storage = multer.memoryStorage();
@@ -80,6 +81,15 @@ const singleUpload = upload.single('img');
 
             producto.img = url[0];
             await producto.save();
+            break;
+          case 'manual-payments':
+            const payment = await ManualPayment.findById(id);
+            urlImagenActual = payment ? payment.proofImageUrl : null;
+            if (!payment) {
+              return res.status(404).json({ error: 'Pago manual no encontrado' });
+            }
+            payment.proofImageUrl = url[0];
+            await payment.save();
             break;
           default:
             return res.status(400).json({ error: 'Tipo no válido' });

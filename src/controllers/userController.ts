@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import User from '../models-mongoose/User';
 import Company from '../models-mongoose/Company';
+import Branch from '../models-mongoose/Branch';
+import { forceCloseUserCashRegisters } from '../controllers/cashRegisterController';
 
 import bcrypt from "bcrypt";
 import mongoose from 'mongoose';
@@ -49,7 +51,7 @@ export const getNumberUsers = async (req: Request, res: Response) => {
 
 export const getAllNonAdminUsersOfCompany = async (req: Request, res: Response) => {
   const adminId = req.params.adminId;
-  const { page = 1, limit = 10, search = '', branchId, role } = req.query;
+  const { page = 1, limit = 10, search = '', branchId, role, status } = req.query;
 
   try {
     // 1. Intentar encontrar al usuario solicitante por su ID para obtener su companyId
@@ -74,13 +76,18 @@ export const getAllNonAdminUsersOfCompany = async (req: Request, res: Response) 
     const limitNumber = parseInt(limit as string) > 0 ? parseInt(limit as string) : 10;
     const skip = (pageNumber - 1) * limitNumber;
 
-    // Filtrar usuarios por compañía y por término de búsqueda, excluyendo al admin y asegurando que estén activos
+    // Filtrar usuarios por compañía y por término de búsqueda, excluyendo al admin
     const query: any = {
       companyId: company._id,
       _id: { $ne: adminId },
-      active: { $ne: false },
       name: { $regex: search, $options: 'i' } // Buscar por nombre, insensible a mayúsculas
     };
+
+    if (status === 'active') {
+      query.active = { $ne: false };
+    } else if (status === 'suspended') {
+      query.active = false;
+    }
 
     // Si el solicitante es un Gerente de Sucursal (rol 'admin'), aplicar aislamiento estricto
     if (requestingUser && requestingUser.role === 'admin') {
@@ -176,14 +183,22 @@ export const  getCompanyAdmin = async (req:Request, res:Response) => {
 };
 export const getAllAdmins = async (req:Request, res:Response) => {
   try {
-  
-      const admins = await User.find({role:'admin'})
-    
-    
-    res.status(200).
-    json({
+      const admins = await User.find({role:'companyAdmin'})
+    res.status(200).json({
       ok:true,
       users:admins
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Hubo un error' });
+  }
+};
+
+export const getAllSysadmins = async (req:Request, res:Response) => {
+  try {
+      const sysadmins = await User.find({role:'sysadmin'})
+    res.status(200).json({
+      ok:true,
+      users:sysadmins
     });
   } catch (error) {
     res.status(500).json({ message: 'Hubo un error' });
@@ -261,6 +276,25 @@ export const createUser = async (req: Request, res: Response) => {
       msg:'Usuario ya existe'
     });
   }
+
+  // Validación de Límites de SaaS
+  if (companyId && role !== 'companyAdmin' && role !== 'sysadmin') {
+    const company = await Company.findById(companyId);
+    if (company && company.currentLimits && company.currentLimits.maxUsers !== undefined && company.currentLimits.maxUsers !== -1) {
+      const activeUsersCount = await User.countDocuments({ 
+          companyId: companyId, 
+          active: { $ne: false }, 
+          role: { $nin: ['companyAdmin', 'sysadmin'] } 
+      });
+      if (activeUsersCount >= company.currentLimits.maxUsers) {
+        return res.status(403).json({ 
+            ok: false,
+            msg: `Has alcanzado el límite de usuarios activos (${company.currentLimits.maxUsers}) de tu plan. No puedes crear más.` 
+        });
+      }
+    }
+  }
+
   const hashedPassword = await bcrypt.hash(password, 10); 
   try {
       const newUser = new User({
@@ -352,5 +386,58 @@ export const deleteUser = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error al desactivar el usuario:', error);
     res.status(500).json({ error: 'Error al desactivar el usuario' });
+  }
+};
+
+export const toggleUserBlock = async (req: Request, res: Response) => {
+  const userId = req.params.id;
+  const companyId = req.params.companyId;
+  const { active } = req.body; // true = reactivate, false = block
+  
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    if (companyId && user.companyId?.toString() !== companyId) {
+      return res.status(403).json({ error: 'Usuario no pertenece a tu empresa' });
+    }
+    
+    if (active) {
+      // 1. Validar Sucursal
+      if (user.branch) {
+        const branch = await Branch.findById(user.branch);
+        if (branch && branch.isActive === false) {
+          return res.status(403).json({ error: 'No puedes reactivar a este usuario porque la sucursal a la que pertenece está desactivada. Edita su perfil y asígnalo a una sucursal activa primero.' });
+        }
+      }
+
+      // 2. Validar Límite SaaS
+      if (user.companyId) {
+        const company = await Company.findById(user.companyId);
+        if (company && company.currentLimits && company.currentLimits.maxUsers !== undefined && company.currentLimits.maxUsers !== -1) {
+          const activeUsersCount = await User.countDocuments({ companyId: user.companyId, active: true, role: { $ne: 'companyAdmin' } });
+          if (activeUsersCount >= company.currentLimits.maxUsers) {
+            return res.status(403).json({ error: `Límite de usuarios (${company.currentLimits.maxUsers}) alcanzado en tu plan actual. Desactiva a otro empleado para liberar un espacio o mejora tu plan.` });
+          }
+        }
+      }
+    }
+    
+    user.active = active;
+    if (!active) {
+       user.deactivationReason = 'Desactivado manualmente por el administrador';
+       // Capa 3: Cerrar cajas vivas si se suspende al usuario
+       await forceCloseUserCashRegisters(user._id);
+    } else {
+       user.deactivationReason = '';
+    }
+    
+    await user.save();
+    
+    res.json({ ok: true, user, message: active ? 'Usuario reactivado' : 'Usuario bloqueado' });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al cambiar estado del usuario' });
   }
 };

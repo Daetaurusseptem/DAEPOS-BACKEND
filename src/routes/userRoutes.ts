@@ -12,10 +12,13 @@ import {
   getAllAdmins,
   getCompanyAdmin,
   getUserByIdSoloAdmin,
-  getUnassignedAdmins,
   getAllUsersOfCompany,
+  getAllSysadmins,
+  toggleUserBlock,
+  getUnassignedAdmins,
 } from '../controllers/userController';
 import { validarAdmin, validarAdminCompany, validarAdminOrSysAdmin, validarSysAdmin, verifyToken } from '../middleware/jwtMiddleware';
+import { checkUserLimit } from '../middleware/enforceTierLimits';
 
 const router = Router();
 
@@ -24,6 +27,7 @@ router.get('/', verifyToken, validarSysAdmin, getAllUsers);
 router.get('/number', verifyToken, validarSysAdmin, getNumberUsers);
 router.get('/admins/available', verifyToken, validarSysAdmin, getAvailableAdmins);
 router.get('/company/admins/all', verifyToken, validarSysAdmin, getAllAdmins);
+router.get('/company/sysadmins/all', verifyToken, validarSysAdmin, getAllSysadmins);
 router.get('/company/admins/unassigned', verifyToken, validarSysAdmin, getUnassignedAdmins );
 router.get('/company/admin/:adminId', verifyToken, validarAdminOrSysAdmin, getCompanyAdmin);
 
@@ -40,8 +44,10 @@ router.put('/:id', verifyToken,[verifyToken, validarAdminCompany, validarAdminOr
 
 // sysadmin
 router.delete('/:id', verifyToken, validarSysAdmin, deleteUser);
+router.put('/:id/toggle-block', verifyToken, validarSysAdmin, toggleUserBlock);
 // admin
 router.delete('/admin/:companyId/:id', verifyToken, validarAdminCompany, deleteUser);
+router.put('/admin/:companyId/:id/toggle-block', verifyToken, validarAdminCompany, toggleUserBlock);
 
 export default router;
  

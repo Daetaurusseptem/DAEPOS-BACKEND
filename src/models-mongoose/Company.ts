@@ -24,6 +24,32 @@ export interface CompanyDocument extends Document {
     maxActiveRegisters: number;
     maxCashLimit: number;
     saleType: 'retail' | 'hospitality';
+    isActive: boolean;
+    billingType: 'stripe' | 'manual';
+    subscriptionStatus: 'active' | 'past_due' | 'canceled' | 'unpaid' | 'trialing' | 'manual';
+    stripeCustomerId?: string;
+    stripeSubscriptionId?: string;
+    currentPeriodEnd?: Date;
+    planType?: string;
+    manualOverride: boolean;
+    planId?: mongoose.Types.ObjectId;
+    customLimitsOverrides?: {
+        maxBranches?: number;
+        maxUsers?: number;
+        maxActiveRegisters?: number;
+        features?: string[];
+    };
+    currentLimits?: {
+        maxBranches?: number;
+        maxUsers?: number;
+        maxActiveRegisters?: number;
+        features?: string[];
+    };
+    snapshotExpirationDate?: Date;
+    previousSubscriptionState?: {
+        status: 'active' | 'past_due' | 'canceled' | 'unpaid' | 'trialing' | 'manual';
+        currentPeriodEnd: Date;
+    };
 }
 
 // Esquema del modelo de Company
@@ -72,6 +98,58 @@ const companySchema = new Schema<CompanyDocument>({
         paymentMethod: String,
         paymentReference: String,
     }],
+    isActive: {
+        type: Boolean,
+        default: true
+    },
+    billingType: {
+        type: String,
+        enum: ['stripe', 'manual'],
+        default: 'stripe'
+    },
+    subscriptionStatus: {
+        type: String,
+        enum: ['active', 'past_due', 'canceled', 'unpaid', 'trialing', 'manual'],
+        default: 'trialing'
+    },
+    stripeCustomerId: {
+        type: String
+    },
+    stripeSubscriptionId: {
+        type: String
+    },
+    currentPeriodEnd: {
+        type: Date
+    },
+    planType: {
+        type: String,
+        default: 'basic'
+    },
+    manualOverride: {
+        type: Boolean,
+        default: false
+    },
+    planId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'SubscriptionPlan'
+    },
+    customLimitsOverrides: {
+        maxBranches: Number,
+        maxUsers: Number,
+        maxActiveRegisters: Number,
+        features: [String]
+    },
+    currentLimits: {
+        maxBranches: Number,
+        maxUsers: Number,
+        maxActiveRegisters: Number,
+        features: [String]
+    },
+    snapshotExpirationDate: Date,
+    previousSubscriptionState: {
+        status: { type: String },
+        currentPeriodEnd: { type: Date }
+    }
 });
 
 // Modelo de Company

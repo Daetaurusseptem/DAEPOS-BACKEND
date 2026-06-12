@@ -26,6 +26,14 @@ export const login = async (req: Request, resp: Response) => {
             })
         }
 
+        // Hard Lock: Usuario Inactivo
+        if (usuarioDB.active === false) {
+            return resp.status(403).json({
+                ok: false,
+                msg: 'Usuario suspendido o inactivo. Contacta a tu administrador.'
+            })
+        }
+
         const validPassword = bcrypt.compareSync(password, usuarioDB.password);
 
 
@@ -34,6 +42,19 @@ export const login = async (req: Request, resp: Response) => {
                 ok: false,
                 msg: 'password invalido'
             })
+        }
+
+        // Hard Lock: Sucursal Inactiva en Login Directo
+        if (usuarioDB.role === 'admin' || usuarioDB.role === 'user' || usuarioDB.role === 'kitchen') {
+            if (usuarioDB.branch) {
+                const branchDoc = await mongoose.model('Branch').findById(usuarioDB.branch);
+                if (branchDoc && branchDoc.isActive === false) {
+                    return resp.status(403).json({
+                        ok: false,
+                        msg: 'La sucursal a la que perteneces está inactiva o suspendida. Contacta a tu corporativo.'
+                    });
+                }
+            }
         }
 
         const token = await generarJWT(usuarioDB._id);
@@ -77,11 +98,19 @@ export const renewToken = async (req: any, resp: Response) => {
     let branch;
 
     if (usuario.role === 'companyAdmin') {
-        company = await Company.findOne({ adminId: uid });
-    } else if ((usuario.role === 'admin' || usuario.role === 'user') && usuario.companyId) {
-        company = await Company.findById(usuario.companyId);
+        company = await Company.findOne({ adminId: uid }).populate('planId', 'name');
+    } else if ((usuario.role === 'admin' || usuario.role === 'user' || usuario.role === 'kitchen') && usuario.companyId) {
+        company = await Company.findById(usuario.companyId).populate('planId', 'name');
         if (usuario.branch) {
             branch = await mongoose.model('Branch').findById(usuario.branch);
+            
+            // Hard Lock: Sucursal Inactiva
+            if (branch && branch.isActive === false) {
+                return resp.status(403).json({
+                    ok: false,
+                    msg: 'La sucursal a la que perteneces está inactiva o suspendida. Contacta a tu corporativo.'
+                });
+            }
         }
     }
 
@@ -95,6 +124,7 @@ export const renewToken = async (req: any, resp: Response) => {
         usuario,
         company,
         branch,
+        isGracePeriod: req.isGracePeriod || false,
         menu: getMenuFrontEnd(usuario?.role, usuario?.permissions)
     });
 }

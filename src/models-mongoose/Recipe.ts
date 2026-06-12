@@ -5,11 +5,17 @@ export interface RecipeIngredient {
   quantity: number;
 }
 
+export interface RecipeSize {
+  name: string;
+  priceModifier: number;
+  ingredients: RecipeIngredient[];
+}
+
 export interface RecipeDocument extends Document {
   name: string;
   description: string;
   company: mongoose.Types.ObjectId;
-  ingredients: RecipeIngredient[];
+  sizes: RecipeSize[];
 }
 
 const recipeIngredientSchema = new Schema<RecipeIngredient>({
@@ -17,11 +23,17 @@ const recipeIngredientSchema = new Schema<RecipeIngredient>({
   quantity: { type: Number, required: true }
 });
 
+const recipeSizeSchema = new Schema<RecipeSize>({
+  name: { type: String, required: true },
+  priceModifier: { type: Number, default: 0 },
+  ingredients: [recipeIngredientSchema]
+});
+
 const recipeSchema = new Schema<RecipeDocument>({
   name: { type: String, required: true },
   description: { type: String, required: true },
   company: { type: Schema.Types.ObjectId, ref: 'Company', required: true },
-  ingredients: [recipeIngredientSchema]
+  sizes: [recipeSizeSchema]
 });
 
 export default mongoose.model<RecipeDocument>('Recipe', recipeSchema);
