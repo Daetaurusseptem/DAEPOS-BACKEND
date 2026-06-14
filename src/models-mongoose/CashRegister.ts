@@ -25,16 +25,16 @@ export interface CashRegisterDocument extends Document {
   startDate: Date;
   endDate?: Date;
   initialAmount: number;
-  
+
   // Totals calculated by the system
   expectedAmount: number; // initial + cashSales - expenses
-  
+
   // Totals reported by the cashier
   actualAmount?: number; // Counted physically at closing
   difference?: number; // actual - expected
   remanenteFloatAmount?: number; // float left for change
   depositWithdrawalAmount?: number; // deposit amount
-  
+
   payments: {
     cash: number;
     credit: number;
@@ -55,13 +55,13 @@ const cashExpenseSchema = new Schema<CashExpense>({
   depositReference: { type: String, default: '' },
   auditStatus: { type: String, required: true, enum: ['pending', 'verified', 'rejected'], default: 'pending' },
   auditedBy: { type: Schema.Types.ObjectId, ref: 'User' },
-  auditedAt: { type: Date }
+  auditedAt: { type: Date },
 });
 
 const corteXSchema = new Schema<CorteXLog>({
   timestamp: { type: Date, default: Date.now },
   generatedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-  expectedAmount: { type: Number, required: true }
+  expectedAmount: { type: Number, required: true },
 });
 
 const cashRegisterSchema: Schema = new Schema({
@@ -101,7 +101,7 @@ const cashRegisterSchema: Schema = new Schema({
   expectedAmount: {
     type: Number,
     required: true,
-    default: 0
+    default: 0,
   },
   actualAmount: {
     type: Number,
@@ -109,15 +109,15 @@ const cashRegisterSchema: Schema = new Schema({
   },
   difference: {
     type: Number,
-    default: 0
+    default: 0,
   },
   remanenteFloatAmount: {
     type: Number,
-    default: 0
+    default: 0,
   },
   depositWithdrawalAmount: {
     type: Number,
-    default: 0
+    default: 0,
   },
   payments: {
     cash: { type: Number, required: true, default: 0, min: 0 },
@@ -125,19 +125,21 @@ const cashRegisterSchema: Schema = new Schema({
     debit: { type: Number, required: true, default: 0, min: 0 },
   },
   expenses: [cashExpenseSchema],
-  sales: [{
-    type: Schema.Types.ObjectId,
-    ref: 'Sale',
-  }],
+  sales: [
+    {
+      type: Schema.Types.ObjectId,
+      ref: 'Sale',
+    },
+  ],
   cortesX: [corteXSchema],
   notes: {
     type: String,
-    default: ''
+    default: '',
   },
   closed: {
     type: Boolean,
-    default: false
-  }
+    default: false,
+  },
 });
 
 // Crear índices eficientes para consultas de auditoría y monitoreo

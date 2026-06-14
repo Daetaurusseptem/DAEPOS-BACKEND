@@ -23,9 +23,7 @@ const productSchema = new Schema<ProductDocument>({
   categories: [{ type: Schema.Types.ObjectId, ref: 'Category', required: true }],
   isComposite: { type: Boolean, required: true },
   recipe: { type: Schema.Types.ObjectId, ref: 'Recipe' },
-  status: { type: String, enum: ['active', 'pending_verification'], default: 'active' }
+  status: { type: String, enum: ['active', 'pending_verification'], default: 'active' },
 });
-
-
 
 export default mongoose.model<ProductDocument>('Product', productSchema);

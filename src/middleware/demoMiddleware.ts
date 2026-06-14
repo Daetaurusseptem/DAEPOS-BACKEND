@@ -31,7 +31,6 @@ export const demoBlocker = async (req: any, resp: Response, next: NextFunction) 
 
     // Check if the user is flagged as a demo account
     if (usuarioDB.get('isDemo') === true) {
-      
       // Allow demo reset requests
       if (req.originalUrl?.includes('/demo-reset')) {
         return next();
@@ -41,7 +40,7 @@ export const demoBlocker = async (req: any, resp: Response, next: NextFunction) 
       if (req.method === 'DELETE') {
         return resp.status(403).json({
           ok: false,
-          msg: 'El borrado de datos está deshabilitado en el modo Demo para proteger el catálogo de muestra.'
+          msg: 'El borrado de datos está deshabilitado en el modo Demo para proteger el catálogo de muestra.',
         });
       }
 
@@ -52,7 +51,7 @@ export const demoBlocker = async (req: any, resp: Response, next: NextFunction) 
         if (req.method === 'PUT' || req.method === 'POST' || req.method === 'DELETE') {
           return resp.status(403).json({
             ok: false,
-            msg: 'La modificación de configuraciones corporativas, sucursales o planes está deshabilitada en el modo Demo.'
+            msg: 'La modificación de configuraciones corporativas, sucursales o planes está deshabilitada en el modo Demo.',
           });
         }
       }
@@ -63,7 +62,7 @@ export const demoBlocker = async (req: any, resp: Response, next: NextFunction) 
         if (body.password || body.role || body.email) {
           return resp.status(403).json({
             ok: false,
-            msg: 'La modificación de contraseñas, correos o roles de usuarios está deshabilitada en el modo Demo.'
+            msg: 'La modificación de contraseñas, correos o roles de usuarios está deshabilitada en el modo Demo.',
           });
         }
       }

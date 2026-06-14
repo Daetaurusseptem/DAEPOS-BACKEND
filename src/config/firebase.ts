@@ -13,12 +13,12 @@ if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && proc
       storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
     });
     bucket = admin.storage().bucket();
-    console.log("Firebase initialized successfully");
+    console.log('Firebase initialized successfully');
   } catch (error) {
-    console.error("Error initializing Firebase:", error);
+    console.error('Error initializing Firebase:', error);
   }
 } else {
-  console.warn("Firebase credentials missing. File uploads will not work.");
+  console.warn('Firebase credentials missing. File uploads will not work.');
 }
 
 export { admin, bucket };

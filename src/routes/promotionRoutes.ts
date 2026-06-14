@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { verifyToken } from '../middleware/jwtMiddleware';
-import { 
-    createPromotion, 
-    getAllPromotions, 
-    validateDiscountCode, 
-    updatePromotion, 
-    deletePromotion 
+import {
+  createPromotion,
+  getAllPromotions,
+  validateDiscountCode,
+  updatePromotion,
+  deletePromotion,
 } from '../controllers/promotionController';
 
 const router = Router();

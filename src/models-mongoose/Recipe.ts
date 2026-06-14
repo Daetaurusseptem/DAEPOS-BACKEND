@@ -20,20 +20,20 @@ export interface RecipeDocument extends Document {
 
 const recipeIngredientSchema = new Schema<RecipeIngredient>({
   ingredient: { type: Schema.Types.ObjectId, ref: 'RawMaterial', required: true },
-  quantity: { type: Number, required: true }
+  quantity: { type: Number, required: true },
 });
 
 const recipeSizeSchema = new Schema<RecipeSize>({
   name: { type: String, required: true },
   priceModifier: { type: Number, default: 0 },
-  ingredients: [recipeIngredientSchema]
+  ingredients: [recipeIngredientSchema],
 });
 
 const recipeSchema = new Schema<RecipeDocument>({
   name: { type: String, required: true },
   description: { type: String, required: true },
   company: { type: Schema.Types.ObjectId, ref: 'Company', required: true },
-  sizes: [recipeSizeSchema]
+  sizes: [recipeSizeSchema],
 });
 
 export default mongoose.model<RecipeDocument>('Recipe', recipeSchema);

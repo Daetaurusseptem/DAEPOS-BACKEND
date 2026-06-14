@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { 
-  createInventoryItem, 
+import {
+  createInventoryItem,
   getInventoryByCompany,
   updateInventoryItem,
   deleteInventoryItem,
@@ -8,7 +8,7 @@ import {
   getInventoryByCategory,
   getInventoryItemById,
   getStockByProductAndBranch,
-  getRecipeStockDetails
+  getRecipeStockDetails,
 } from '../controllers/inventoryController';
 import { verifyToken as validarJWT } from '../middleware/jwtMiddleware';
 

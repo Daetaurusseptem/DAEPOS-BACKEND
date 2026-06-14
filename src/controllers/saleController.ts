@@ -17,28 +17,27 @@ import mongoose, { Types } from 'mongoose';
 // Obtener todas las ventas
 export const getAllSales = async (req: Request, res: Response) => {
   try {
-      const { branchId, companyId } = req.query;
-      let query: any = {};
-      
-      if (companyId) query.company = companyId;
-      if (branchId) query.branch = branchId;
+    const { branchId, companyId } = req.query;
+    const query: any = {};
 
-      const sales = await Sale.find(query).populate('user').populate('productsSold.product');
-      res.status(200).json(sales);
+    if (companyId) query.company = companyId;
+    if (branchId) query.branch = branchId;
+
+    const sales = await Sale.find(query).populate('user').populate('productsSold.product');
+    res.status(200).json(sales);
   } catch (error) {
-      res.status(500).json({ message: error });
-  } 
+    res.status(500).json({ message: error });
+  }
 };
-
 
 // Obtener una venta por ID
 export const getSaleById = async (req: Request, res: Response) => {
   try {
-      const sale = await Sale.findById(req.params.id).populate('user').populate('productsSold.product');
-      if (!sale) return res.status(404).json({ message: 'Venta no encontrada' });
-      res.status(200).json({ ok: true, sale });
+    const sale = await Sale.findById(req.params.id).populate('user').populate('productsSold.product');
+    if (!sale) return res.status(404).json({ message: 'Venta no encontrada' });
+    res.status(200).json({ ok: true, sale });
   } catch (error) {
-      res.status(500).json({ message: error });
+    res.status(500).json({ message: error });
   }
 };
 
@@ -49,42 +48,50 @@ const deductStockForSimpleItem = async (itemId: string, quantity: number, sessio
   item.stock -= quantity;
   if (item.stock < 0) throw new Error(`Not enough stock for item ${item.name}`);
   await item.save(session ? { session } : undefined);
-};  
+};
 
 // Función para deducir ingredientes para un ítem compuesto
-const deductIngredientsForCompositeItem = async (recipeId: any, quantity: number, branchId: any, multiplier: number = 1, session: any = null, sizeName?: string) => {
+const deductIngredientsForCompositeItem = async (
+  recipeId: any,
+  quantity: number,
+  branchId: any,
+  multiplier: number = 1,
+  session: any = null,
+  sizeName?: string,
+) => {
   const recipe = await Recipe.findById(recipeId).populate('sizes.ingredients.ingredient');
   if (!recipe) throw new Error('Recipe not found');
 
   let targetSize;
   if (sizeName) {
-     targetSize = recipe.sizes.find(s => s.name === sizeName);
+    targetSize = recipe.sizes.find((s) => s.name === sizeName);
   }
   if (!targetSize && recipe.sizes && recipe.sizes.length > 0) {
-     targetSize = recipe.sizes[0]; // Fallback al primero
+    targetSize = recipe.sizes[0]; // Fallback al primero
   }
 
   if (!targetSize || !targetSize.ingredients) {
-     throw new Error(`La receta no tiene ingredientes configurados para el tamaño especificado.`);
+    throw new Error(`La receta no tiene ingredientes configurados para el tamaño especificado.`);
   }
 
   for (const recipeIngredient of targetSize.ingredients) {
-      // Buscar el stock local de este ingrediente maestro en la sucursal actual
-      const ingredientItem = await InventoryItem.findOne({ 
-        rawMaterial: recipeIngredient.ingredient._id, 
-        branch: branchId 
-      });
-      if (!ingredientItem) {
-        throw new Error(`Insumo ${(recipeIngredient.ingredient as any).name || 'desconocido'} no está registrado en esta sucursal.`);
-      }
-      ingredientItem.stock -= recipeIngredient.quantity * quantity * multiplier;
-      if (ingredientItem.stock < 0) {
-        throw new Error(`Stock insuficiente de ${ingredientItem.name} en esta sucursal.`);
-      }
-      await ingredientItem.save(session ? { session } : undefined);
+    // Buscar el stock local de este ingrediente maestro en la sucursal actual
+    const ingredientItem = await InventoryItem.findOne({
+      rawMaterial: recipeIngredient.ingredient._id,
+      branch: branchId,
+    });
+    if (!ingredientItem) {
+      throw new Error(
+        `Insumo ${(recipeIngredient.ingredient as any).name || 'desconocido'} no está registrado en esta sucursal.`,
+      );
+    }
+    ingredientItem.stock -= recipeIngredient.quantity * quantity * multiplier;
+    if (ingredientItem.stock < 0) {
+      throw new Error(`Stock insuficiente de ${ingredientItem.name} en esta sucursal.`);
+    }
+    await ingredientItem.save(session ? { session } : undefined);
   }
 };
-
 
 // Procesar la venta y actualizar el inventario
 const processSale = async (productsSold: any[], branchId: any, session: any = null) => {
@@ -92,45 +99,56 @@ const processSale = async (productsSold: any[], branchId: any, session: any = nu
     // Utilizar el ID del producto y la sucursal para encontrar el item correcto
     const item = await InventoryItem.findOne({ product: productSold.product, branch: branchId }).populate('product');
     if (!item) throw new Error(`Item for product ${productSold.product} not found in branch ${branchId}`);
-    
+
     // Buscar el producto para verificar si es compuesto
     const product = await Product.findById((item.product as any)._id);
     if (!product) throw new Error('Product not found');
 
     // Verificar si el producto es compuesto y deducir los ingredientes si es necesario
-    if (product.isComposite) { 
+    if (product.isComposite) {
       if (!product.recipe) throw new Error('Composite product does not have a recipe');
-      await deductIngredientsForCompositeItem(product.recipe, productSold.quantity, branchId, productSold.multiplier || 1, session, productSold.sizeName);
+      await deductIngredientsForCompositeItem(
+        product.recipe,
+        productSold.quantity,
+        branchId,
+        productSold.multiplier || 1,
+        session,
+        productSold.sizeName,
+      );
     } else {
-      // Deducir el stock del ítem simple 
+      // Deducir el stock del ítem simple
       await deductStockForSimpleItem(item._id.toString(), productSold.quantity, session);
     }
 
     // Deducir modificaciones (toppings/extras) si las hay
     if (productSold.modifications && productSold.modifications.length > 0 && item.modifications) {
       for (const soldMod of productSold.modifications) {
-         const modDef = item.modifications.find(m => m.name === soldMod.name);
-         if (modDef && modDef.rawMaterial && modDef.quantityToDeduct && modDef.quantityToDeduct > 0) {
-             const ingredientItem = await InventoryItem.findOne({ 
-               rawMaterial: modDef.rawMaterial, 
-               branch: branchId 
-             });
-             if (ingredientItem) {
-               ingredientItem.stock -= modDef.quantityToDeduct * productSold.quantity;
-               if (ingredientItem.stock < 0) {
-                  throw new Error(`Stock insuficiente de ${ingredientItem.name} en esta sucursal (requerido para extra: ${modDef.name}).`);
-               }
-               await ingredientItem.save(session ? { session } : undefined);
-             }
-         }
+        const modDef = item.modifications.find((m) => m.name === soldMod.name);
+        if (modDef && modDef.rawMaterial && modDef.quantityToDeduct && modDef.quantityToDeduct > 0) {
+          const ingredientItem = await InventoryItem.findOne({
+            rawMaterial: modDef.rawMaterial,
+            branch: branchId,
+          });
+          if (ingredientItem) {
+            ingredientItem.stock -= modDef.quantityToDeduct * productSold.quantity;
+            if (ingredientItem.stock < 0) {
+              throw new Error(
+                `Stock insuficiente de ${ingredientItem.name} en esta sucursal (requerido para extra: ${modDef.name}).`,
+              );
+            }
+            await ingredientItem.save(session ? { session } : undefined);
+          }
+        }
       }
     }
   }
 };
- 
 
 class HttpError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
     super(message);
   }
 }
@@ -142,11 +160,20 @@ export const createSale = async (req: Request, res: Response) => {
   if (session) session.startTransaction();
 
   try {
-    const { 
-
-      user, total, discount, productsSold, paymentMethod, receivedAmount, 
-      change, paymentReference, customerId, promotionId, pointsRedeemed 
+    const {
+      total,
+      discount,
+      productsSold,
+      paymentMethod,
+      receivedAmount,
+      change,
+      paymentReference,
+      customerId,
+      promotionId,
+      pointsRedeemed,
     } = req.body;
+
+    const user = (req as any).uid;
 
     // Obtener la caja abierta del usuario
     const cashRegister = await CashRegister.findOne({ user, closed: false });
@@ -160,7 +187,10 @@ export const createSale = async (req: Request, res: Response) => {
     const hoursOpen = (new Date().getTime() - cashRegister.startDate.getTime()) / (1000 * 60 * 60);
 
     if (hoursOpen > maxShiftDurationHours) {
-        throw new HttpError(400, `La caja ha excedido el tiempo máximo permitido de ${maxShiftDurationHours} horas. Por favor, solicita a un gerente que realice el corte de caja.`);
+      throw new HttpError(
+        400,
+        `La caja ha excedido el tiempo máximo permitido de ${maxShiftDurationHours} horas. Por favor, solicita a un gerente que realice el corte de caja.`,
+      );
     }
 
     // Obtener el usuario y la compañía
@@ -217,7 +247,7 @@ export const createSale = async (req: Request, res: Response) => {
         }
 
         // 3. Registrar consumo histórico del cliente (independiente de si los puntos están activos)
-        customerDoc.totalSpent += (total - (discount || 0));
+        customerDoc.totalSpent += total - (discount || 0);
         customerDoc.salesCount += 1;
 
         // 4. Ajustar el Tier del cliente automáticamente basado en consumo
@@ -266,8 +296,8 @@ export const createSale = async (req: Request, res: Response) => {
           multiplier: product.multiplier || 1,
           modifications: product.modifications.map((mod: any) => ({
             name: mod.name,
-            extraPrice: mod.extraPrice
-          }))
+            extraPrice: mod.extraPrice,
+          })),
         };
       }),
       date: new Date(),
@@ -277,7 +307,7 @@ export const createSale = async (req: Request, res: Response) => {
       customer: customerId || undefined,
       appliedPromotion: promotionId || undefined,
       pointsRedeemed: validatedPointsRedeemed,
-      pointsEarned: calculatedPointsEarned
+      pointsEarned: calculatedPointsEarned,
     };
 
     // Añadir información adicional según el método de pago
@@ -297,7 +327,10 @@ export const createSale = async (req: Request, res: Response) => {
     const kitchenItems: any[] = [];
     for (const productSold of productsSold) {
       const productDoc = await Product.findById(productSold.product);
-      if (productDoc && (productDoc.isComposite || (productSold.modifications && productSold.modifications.length > 0))) {
+      if (
+        productDoc &&
+        (productDoc.isComposite || (productSold.modifications && productSold.modifications.length > 0))
+      ) {
         kitchenItems.push({
           product: productSold.product,
           productName: productDoc.name,
@@ -305,17 +338,17 @@ export const createSale = async (req: Request, res: Response) => {
           unitPrice: productSold.unitPrice,
           subtotal: productSold.unitPrice * productSold.quantity, // Subtotal simple, luego modificadores
           modifications: productSold.modifications || [],
-          status: 'sent_to_kitchen'
+          status: 'sent_to_kitchen',
         });
       }
     }
 
     if (kitchenItems.length > 0) {
       // Calcular subtotal real de kitchenItems con mods
-      kitchenItems.forEach(ki => {
-         let sub = ki.unitPrice * ki.quantity;
-         ki.modifications.forEach((m: any) => sub += (m.extraPrice * ki.quantity));
-         ki.subtotal = sub;
+      kitchenItems.forEach((ki) => {
+        let sub = ki.unitPrice * ki.quantity;
+        ki.modifications.forEach((m: any) => (sub += m.extraPrice * ki.quantity));
+        ki.subtotal = sub;
       });
 
       let custName = 'Mostrador';
@@ -330,13 +363,13 @@ export const createSale = async (req: Request, res: Response) => {
         table: 'Venta Directa',
         clientName: custName,
         type: 'take_away',
-        kitchenStatus: 'in_kitchen',
+        kitchenStatus: 'delivered', // Venta directa: no necesita flujo de cocina
         paymentStatus: 'paid', // Ya está pagado porque entró por Venta Directa
         company: companyId,
         branch: branchId,
         productsSold: kitchenItems,
         total: kitchenItems.reduce((acc, curr) => acc + curr.subtotal, 0),
-        prepStartedAt: new Date()
+        prepStartedAt: new Date(),
       });
       const savedPending = await newPendingOrder.save(session ? { session } : undefined);
       const safeBranchId = branchId?.toString() || '';
@@ -375,7 +408,7 @@ export const createSale = async (req: Request, res: Response) => {
     cashRegister.payments.cash += cashTotal;
     cashRegister.payments.credit += creditTotal;
     cashRegister.payments.debit += debitTotal;
-    
+
     // El dinero esperado solo aumenta con ventas en EFECTIVO (cash)
     cashRegister.expectedAmount += cashTotal;
 
@@ -395,7 +428,7 @@ export const createSale = async (req: Request, res: Response) => {
 
     return res.status(201).json({
       ...savedSale.toObject(),
-      cashLimitExceeded
+      cashLimitExceeded,
     });
   } catch (error: any) {
     if (session) {

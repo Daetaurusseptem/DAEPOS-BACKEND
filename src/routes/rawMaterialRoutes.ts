@@ -1,10 +1,10 @@
 import { Router } from 'express';
-import { 
-    createRawMaterial, 
-    getCompanyRawMaterials, 
-    getRawMaterial, 
-    updateRawMaterial, 
-    deleteRawMaterial 
+import {
+  createRawMaterial,
+  getCompanyRawMaterials,
+  getRawMaterial,
+  updateRawMaterial,
+  deleteRawMaterial,
 } from '../controllers/rawMaterialController';
 
 const router = Router();

@@ -7,8 +7,8 @@ export const initSocket = (httpServer: HttpServer) => {
   io = new SocketIOServer(httpServer, {
     cors: {
       origin: '*', // Permitir todas las conexiones para simplificar en dev
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
-    }
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    },
   });
 
   io.on('connection', (socket) => {
@@ -21,15 +21,17 @@ export const initSocket = (httpServer: HttpServer) => {
     });
 
     // Nueva sala global para usuarios (incluye permisos/roles para notificaciones)
-    socket.on('join-user-rooms', (data: { userId: string, companyId: string, branchId?: string, role?: string }) => {
+    socket.on('join-user-rooms', (data: { userId: string; companyId: string; branchId?: string; role?: string }) => {
       const { userId, companyId, branchId, role } = data;
-      
+
       if (userId) socket.join(`user-${userId}`);
       if (companyId) socket.join(`company-${companyId}`);
       if (branchId) socket.join(`branch-${branchId}`);
       if (role && companyId) socket.join(`role-${role}-${companyId}`);
-      
-      console.log(`Socket ${socket.id} unido a las salas: user-${userId}, company-${companyId}, branch-${branchId}, role-${role}-${companyId}`);
+
+      console.log(
+        `Socket ${socket.id} unido a las salas: user-${userId}, company-${companyId}, branch-${branchId}, role-${role}-${companyId}`,
+      );
     });
 
     socket.on('disconnect', () => {

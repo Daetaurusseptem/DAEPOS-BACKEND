@@ -12,13 +12,13 @@ import moment from 'moment';
 export const openCashRegister = async (req: Request, res: Response) => {
   try {
     const { user, physicalRegister, initialAmount } = req.body;
-    
+
     // Validar que el usuario que intenta abrir la caja sea el mismo autenticado
     const reqWithUid = req as any;
     if (reqWithUid.uid && user !== reqWithUid.uid) {
       return res.status(403).json({ message: 'No tienes privilegios para abrir caja para otro usuario' });
     }
-    
+
     // 1. Verificar si el usuario ya tiene una caja abierta
     const existingUserShift = await CashRegister.findOne({ user, closed: false });
     if (existingUserShift) {
@@ -64,8 +64,8 @@ export const openCashRegister = async (req: Request, res: Response) => {
       initialAmount,
       expectedAmount: initialAmount,
       startDate: new Date(),
-      closed: false
-    }); 
+      closed: false,
+    });
 
     const savedCashRegister = await newCashRegister.save();
     res.status(201).json(savedCashRegister);
@@ -85,21 +85,29 @@ export const closeCashRegister = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Turno no encontrado' });
     }
 
+    // Ownership check
+    const reqWithUid = req as any;
+    if (reqWithUid.uid && cashRegister.user.toString() !== reqWithUid.uid) {
+      return res.status(403).json({ message: 'No tienes permiso para cerrar esta caja.' });
+    }
+
     if (cashRegister.closed) {
       return res.status(400).json({ message: 'Este turno ya ha sido cerrado' });
     }
 
     // Capa 1: Validación Estricta Anti-Huérfanos
+    // Solo bloquea si hay comandas NO canceladas y NO entregadas, o impagas
     const hasPendingOrders = await PendingOrder.exists({
       cashRegister: cashRegister._id,
-      $or: [
-        { kitchenStatus: { $nin: ['delivered', 'canceled'] } },
-        { paymentStatus: { $in: ['unpaid', 'partial'] } }
-      ]
+      kitchenStatus: { $nin: ['delivered', 'canceled'] },
+      paymentStatus: { $in: ['unpaid', 'partial'] },
     });
 
     if (hasPendingOrders) {
-      return res.status(400).json({ message: 'No puedes cerrar la caja. Tienes comandas pendientes de preparar o sin liquidar completamente en este turno. Por favor cóbralas o cancélalas primero.' });
+      return res.status(400).json({
+        message:
+          'No puedes cerrar la caja. Tienes comandas pendientes de preparar o sin liquidar completamente en este turno. Por favor cóbralas o cancélalas primero.',
+      });
     }
 
     // El expectedAmount ya se va actualizando en cada venta
@@ -114,7 +122,7 @@ export const closeCashRegister = async (req: Request, res: Response) => {
     const savedCashRegister = await cashRegister.save();
     res.status(200).json(savedCashRegister);
   } catch (error) {
-    res.status(500).json({ message: 'Error closing cash register', error});
+    res.status(500).json({ message: 'Error closing cash register', error });
   }
 };
 
@@ -129,7 +137,9 @@ export const forceCloseUserCashRegisters = async (userId: string | any) => {
       register.endDate = new Date();
       register.actualAmount = 0;
       register.difference = 0 - register.expectedAmount;
-      register.notes = (register.notes || '') + '\n[CIERRE FORZOSO]: El sistema cerró esta caja automáticamente porque el usuario fue suspendido (o su sucursal fue inhabilitada). El conteo físico se forzó a $0.00.';
+      register.notes =
+        (register.notes || '') +
+        '\n[CIERRE FORZOSO]: El sistema cerró esta caja automáticamente porque el usuario fue suspendido (o su sucursal fue inhabilitada). El conteo físico se forzó a $0.00.';
       await register.save();
     }
   } catch (error) {
@@ -145,7 +155,9 @@ export const forceCloseBranchCashRegisters = async (branchId: string | any) => {
       register.endDate = new Date();
       register.actualAmount = 0;
       register.difference = 0 - register.expectedAmount;
-      register.notes = (register.notes || '') + '\n[CIERRE FORZOSO]: El sistema cerró esta caja automáticamente porque la sucursal fue suspendida por downgrade. El conteo físico se forzó a $0.00.';
+      register.notes =
+        (register.notes || '') +
+        '\n[CIERRE FORZOSO]: El sistema cerró esta caja automáticamente porque la sucursal fue suspendida por downgrade. El conteo físico se forzó a $0.00.';
       await register.save();
     }
   } catch (error) {
@@ -158,15 +170,26 @@ export const addExpense = async (req: Request, res: Response) => {
   try {
     const { id } = req.params; // ID del CashRegister (Turno)
     const { amount, reason, type = 'expense', depositReference = '' } = req.body;
+    const reqWithUid = req as any;
 
     const cashRegister = await CashRegister.findById(id);
     if (!cashRegister || cashRegister.closed) {
       return res.status(404).json({ message: 'Turno activo no encontrado' });
     }
 
+    // Ownership check
+    if (reqWithUid.uid && cashRegister.user.toString() !== reqWithUid.uid) {
+      return res.status(403).json({ message: 'No tienes permiso para agregar gastos a esta caja.' });
+    }
+
+    // Validar monto positivo
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ message: 'El monto debe ser un número positivo.' });
+    }
+
     if (amount > cashRegister.expectedAmount) {
-      return res.status(400).json({ 
-        message: `No hay suficiente efectivo disponible en caja para realizar este retiro. Efectivo disponible: $${cashRegister.expectedAmount.toFixed(2)}` 
+      return res.status(400).json({
+        message: `No hay suficiente efectivo disponible en caja para realizar este retiro. Efectivo disponible: $${cashRegister.expectedAmount.toFixed(2)}`,
       });
     }
 
@@ -176,7 +199,7 @@ export const addExpense = async (req: Request, res: Response) => {
       type,
       timestamp: new Date(),
       depositReference,
-      auditStatus: type === 'withdrawal' ? 'pending' : 'verified'
+      auditStatus: type === 'withdrawal' ? 'pending' : 'verified',
     });
 
     // Restar del dinero esperado en caja
@@ -203,7 +226,7 @@ export const registerCorteXLog = async (req: Request, res: Response) => {
     cashRegister.cortesX.push({
       timestamp: new Date(),
       generatedBy: user,
-      expectedAmount: expectedAmount
+      expectedAmount: expectedAmount,
     });
 
     await cashRegister.save();
@@ -279,10 +302,16 @@ export const getCashRegistersHistory = async (req: Request, res: Response) => {
     if (startDate || endDate) {
       query.startDate = {};
       if (startDate) {
-        query.startDate.$gte = moment.utc(startDate as string).startOf('day').toDate();
+        query.startDate.$gte = moment
+          .utc(startDate as string)
+          .startOf('day')
+          .toDate();
       }
       if (endDate) {
-        query.startDate.$lte = moment.utc(endDate as string).endOf('day').toDate();
+        query.startDate.$lte = moment
+          .utc(endDate as string)
+          .endOf('day')
+          .toDate();
       }
     }
 
@@ -318,7 +347,7 @@ export const getCashRegistersHistory = async (req: Request, res: Response) => {
       total,
       page: pageNum,
       totalPages,
-      limit: limitNum
+      limit: limitNum,
     });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching cash registers history', error });
@@ -327,10 +356,13 @@ export const getCashRegistersHistory = async (req: Request, res: Response) => {
 
 export const getCashRegisters = async (req: Request, res: Response) => {
   try {
-    const cashRegisters = await CashRegister.find()
-      .populate('user')
-      .populate('physicalRegister')
-      .populate('sales');
+    const reqWithUid = req as any;
+    const user = await import('../models-mongoose/User').then(m => m.default.findById(reqWithUid.uid));
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+    const cashRegisters = await CashRegister.find({ company: user.companyId })
+      .populate('user').populate('physicalRegister').populate('sales');
     res.status(200).json(cashRegisters);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching cash registers', error });
@@ -340,8 +372,7 @@ export const getCashRegisters = async (req: Request, res: Response) => {
 export const getOpenCashRegister = async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
-    const openCashRegister = await CashRegister.findOne({ user: userId, closed: false })
-      .populate('physicalRegister');
+    const openCashRegister = await CashRegister.findOne({ user: userId, closed: false }).populate('physicalRegister');
 
     if (!openCashRegister) {
       return res.status(404).json({ message: 'No open cash register found for this user' });
@@ -376,7 +407,7 @@ export const getUserCashRegistersByStartDate = async (req: Request, res: Respons
 
     const cashRegisters = await CashRegister.find({
       user: userId,
-      startDate: { $gte: start, $lte: end }
+      startDate: { $gte: start, $lte: end },
     })
       .populate('user')
       .populate('physicalRegister')
@@ -392,7 +423,7 @@ export const getUserCajasByDate = async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const cajas = await CashRegister.find({ user: userId }).select('startDate');
-    const fechas = Array.from(new Set(cajas.map(caja => caja.startDate.toISOString().split('T')[0])));
+    const fechas = Array.from(new Set(cajas.map((caja) => caja.startDate.toISOString().split('T')[0])));
     return res.status(200).json({ fechas });
   } catch (error) {
     return res.status(500).json({ message: 'Error fetching dates', error });
@@ -407,7 +438,7 @@ export const getCajaDetailsById = async (req: Request, res: Response) => {
       .populate('physicalRegister')
       .populate({
         path: 'sales',
-        populate: { path: 'productsSold.product' }
+        populate: { path: 'productsSold.product' },
       });
 
     if (!cashRegister) {
@@ -422,8 +453,7 @@ export const getCajaDetailsById = async (req: Request, res: Response) => {
 export const getSalesByCashRegister = async (req: Request, res: Response) => {
   try {
     const { cashRegisterId } = req.params;
-    const sales = await Sale.find({ cashRegister: cashRegisterId })
-      .populate('productsSold.product');
+    const sales = await Sale.find({ cashRegister: cashRegisterId }).populate('productsSold.product');
     res.status(200).json({ ok: true, sales });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching sales for cash register', error });
@@ -438,8 +468,14 @@ export const getUserCashRegistersHistory = async (req: Request, res: Response) =
     const query: any = { user: userId };
 
     if (date) {
-      const startOfDay = moment.utc(date as string).startOf('day').toDate();
-      const endOfDay = moment.utc(date as string).endOf('day').toDate();
+      const startOfDay = moment
+        .utc(date as string)
+        .startOf('day')
+        .toDate();
+      const endOfDay = moment
+        .utc(date as string)
+        .endOf('day')
+        .toDate();
       query.startDate = { $gte: startOfDay, $lte: endOfDay };
     }
 
@@ -464,7 +500,7 @@ export const getUserCashRegistersHistory = async (req: Request, res: Response) =
       total,
       page: pageNum,
       totalPages,
-      limit: limitNum
+      limit: limitNum,
     });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching user cash registers history', error });

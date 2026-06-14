@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import { verifyToken } from '../middleware/jwtMiddleware';
-import { 
-    createCustomer, 
-    getAllCustomers, 
-    searchCustomers, 
-    getCustomerById, 
-    updateCustomer, 
-    deleteCustomer 
+import {
+  createCustomer,
+  getAllCustomers,
+  searchCustomers,
+  getCustomerById,
+  updateCustomer,
+  deleteCustomer,
 } from '../controllers/customerController';
 
 const router = Router();

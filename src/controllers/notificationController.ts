@@ -31,16 +31,16 @@ export const getMyNotifications = async (req: any, res: Response) => {
         company: companyId,
         status: 'pending',
         expectedDate: {
-          $gte: new Date(new Date().setHours(0,0,0,0)), // Desde hoy a las 00:00
-          $lte: threeDaysFromNow
-        }
+          $gte: new Date(new Date().setHours(0, 0, 0, 0)), // Desde hoy a las 00:00
+          $lte: threeDaysFromNow,
+        },
       });
 
       for (const restock of upcomingRestocks) {
         const formattedDate = new Date(restock.expectedDate).toLocaleDateString('es-MX', {
           day: '2-digit',
           month: '2-digit',
-          year: 'numeric'
+          year: 'numeric',
         });
 
         // Comprobar si ya existe un recordatorio para este reabastecimiento en la base de datos
@@ -48,7 +48,7 @@ export const getMyNotifications = async (req: any, res: Response) => {
           company: companyId,
           targetBranch: restock.branch,
           title: 'Recordatorio de Entrega Próxima',
-          link: `/dashboard/admin/suppliers/details/${restock.supplier}`
+          link: `/dashboard/admin/suppliers/details/${restock.supplier}`,
         });
 
         if (!existingNotif) {
@@ -61,7 +61,7 @@ export const getMyNotifications = async (req: any, res: Response) => {
             title: 'Recordatorio de Entrega Próxima',
             message: `El proveedor ${supplierName} tiene programado entregar en esta sucursal el día ${formattedDate}. Por favor, prepara la recepción e inspección.`,
             type: 'warning',
-            link: `/dashboard/admin/suppliers/details/${restock.supplier}`
+            link: `/dashboard/admin/suppliers/details/${restock.supplier}`,
           });
           await notif.save();
         }
@@ -75,20 +75,18 @@ export const getMyNotifications = async (req: any, res: Response) => {
       company: companyId,
       $and: [
         // Sucursal: si el usuario tiene sucursal, ve las de su sucursal o las globales
-        user.branch ? {
-          $or: [
-            { targetBranch: typeof user.branch === 'object' ? (user.branch as any)._id : user.branch },
-            { targetBranch: { $exists: false } },
-            { targetBranch: null }
-          ]
-        } : {},
+        user.branch
+          ? {
+              $or: [
+                { targetBranch: typeof user.branch === 'object' ? (user.branch as any)._id : user.branch },
+                { targetBranch: { $exists: false } },
+                { targetBranch: null },
+              ],
+            }
+          : {},
         // Usuario específico
         {
-          $or: [
-            { targetUser: userId },
-            { targetUser: { $exists: false } },
-            { targetUser: null }
-          ]
+          $or: [{ targetUser: userId }, { targetUser: { $exists: false } }, { targetUser: null }],
         },
         // Rol
         {
@@ -96,23 +94,23 @@ export const getMyNotifications = async (req: any, res: Response) => {
             { targetRole: user.role },
             { targetRole: { $exists: false } },
             { targetRole: null },
-            { targetRole: '' }
-          ]
-        }
-      ]
+            { targetRole: '' },
+          ],
+        },
+      ],
     })
-    .sort({ createdAt: -1 })
-    .limit(50);
+      .sort({ createdAt: -1 })
+      .limit(50);
 
     // Mapear para incluir una bandera booleana conveniente de lectura
-    const mappedNotifs = notifications.map(n => ({
+    const mappedNotifs = notifications.map((n) => ({
       _id: n._id,
       title: n.title,
       message: n.message,
       type: n.type,
       link: n.link,
       createdAt: n.createdAt,
-      isRead: n.readBy.includes(userId)
+      isRead: n.readBy.includes(userId),
     }));
 
     return res.status(200).json({ ok: true, notifications: mappedNotifs });
@@ -168,29 +166,27 @@ export const markAllAsRead = async (req: any, res: Response) => {
       company: companyId,
       readBy: { $ne: userId },
       $and: [
-        user.branch ? {
-          $or: [
-            { targetBranch: typeof user.branch === 'object' ? (user.branch as any)._id : user.branch },
-            { targetBranch: { $exists: false } },
-            { targetBranch: null }
-          ]
-        } : {},
+        user.branch
+          ? {
+              $or: [
+                { targetBranch: typeof user.branch === 'object' ? (user.branch as any)._id : user.branch },
+                { targetBranch: { $exists: false } },
+                { targetBranch: null },
+              ],
+            }
+          : {},
         {
-          $or: [
-            { targetUser: userId },
-            { targetUser: { $exists: false } },
-            { targetUser: null }
-          ]
+          $or: [{ targetUser: userId }, { targetUser: { $exists: false } }, { targetUser: null }],
         },
         {
           $or: [
             { targetRole: user.role },
             { targetRole: { $exists: false } },
             { targetRole: null },
-            { targetRole: '' }
-          ]
-        }
-      ]
+            { targetRole: '' },
+          ],
+        },
+      ],
     });
 
     // Añadir el userId al array readBy

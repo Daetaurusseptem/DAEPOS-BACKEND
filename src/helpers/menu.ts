@@ -13,7 +13,7 @@ export const getMenuFrontEnd = (role = 'admin', permissions: string[] = []) => {
           { title: 'Monitoreo de Cajas', url: 'admin/live-registers', icon: 'bi bi-broadcast' },
           { title: 'Bitácora de Cajas', url: 'admin/cajas-historial', icon: 'bi bi-clock-history' },
           { title: 'Facturación y Plan', url: 'admin/billing', icon: 'bi bi-credit-card-fill' },
-        ]
+        ],
       },
       {
         id: 'administracion',
@@ -24,8 +24,9 @@ export const getMenuFrontEnd = (role = 'admin', permissions: string[] = []) => {
           { title: 'Usuarios y Personal', url: 'admin/users', icon: 'bi bi-people-fill' },
           { title: 'Proveedores', url: 'admin/suppliers', icon: 'bi bi-file-earmark-person' },
           { title: 'Entregas y Restock', url: 'admin/suppliers/deliveries', icon: 'bi bi-truck' },
+          { title: 'Auditoría On-the-Fly', url: 'admin/audits/pending', icon: 'bi bi-clipboard-check-fill' },
           { title: 'Clientes (CRM)', url: 'admin/customers', icon: 'bi bi-chat-left-heart-fill' },
-        ]
+        ],
       },
       {
         id: 'analiticas',
@@ -35,8 +36,8 @@ export const getMenuFrontEnd = (role = 'admin', permissions: string[] = []) => {
           { title: 'Cupones & Promos', url: 'admin/promotions', icon: 'bi bi-tags-fill' },
           { title: 'Estadísticas Globales', url: 'admin/statistics', icon: 'bi bi-bar-chart-line-fill' },
           { title: 'Generar Reportes', url: 'reports', icon: 'bi bi-file-earmark-pdf-fill' },
-        ]
-      }
+        ],
+      },
     );
   }
 
@@ -50,8 +51,9 @@ export const getMenuFrontEnd = (role = 'admin', permissions: string[] = []) => {
           { title: 'Home', url: 'admin', icon: 'bi bi-house-fill' },
           { title: 'Supervisión de Cajas', url: 'admin/live-registers', icon: 'bi bi-broadcast' },
           { title: 'Auditoría de Cajas', url: 'admin/cajas-historial', icon: 'bi bi-clock-history' },
+          { title: 'Auditoría On-the-Fly', url: 'admin/audits/pending', icon: 'bi bi-clipboard-check-fill' },
           { title: 'Cajeros', url: 'admin/users', icon: 'bi bi-people-fill' },
-        ]
+        ],
       },
       {
         id: 'inventario-logistica',
@@ -64,7 +66,7 @@ export const getMenuFrontEnd = (role = 'admin', permissions: string[] = []) => {
           { title: 'Categorías', url: 'admin/categories', icon: 'bi bi-bookmark-fill' },
           { title: 'Recetas', url: 'admin/recipes', icon: 'bi bi-backpack4' },
           { title: 'Ingredientes', url: 'admin/raw-materials', icon: 'bi bi-egg-fill' },
-        ]
+        ],
       },
       {
         id: 'comercial-reportes',
@@ -76,8 +78,8 @@ export const getMenuFrontEnd = (role = 'admin', permissions: string[] = []) => {
           { title: 'Ventas del Día', url: 'admin/statistics', icon: 'bi bi-bar-chart-fill' },
           { title: 'Generar Reportes', url: 'reports', icon: 'bi bi-file-earmark-pdf-fill' },
           { title: 'Impresoras', url: 'admin/manage-printers', icon: 'bi bi-printer' },
-        ]
-      }
+        ],
+      },
     );
   }
 
@@ -96,7 +98,7 @@ export const getMenuFrontEnd = (role = 'admin', permissions: string[] = []) => {
       id: 'punto-venta',
       title: 'Punto de Venta',
       icon: 'bi bi-cart',
-      submenu: userSubmenu
+      submenu: userSubmenu,
     });
   }
 
@@ -115,7 +117,7 @@ export const getMenuFrontEnd = (role = 'admin', permissions: string[] = []) => {
         { title: 'Ajustes Globales', url: 'sysadmin/global-settings', icon: 'bi bi-gear-fill' },
         { title: 'Empresas', url: 'sysadmin/companies', icon: 'bi bi-building-fill' },
         { title: 'Usuarios Maestros', url: 'sysadmin/users', icon: 'bi bi-people-fill' },
-      ]
+      ],
     });
   }
 
@@ -124,9 +126,7 @@ export const getMenuFrontEnd = (role = 'admin', permissions: string[] = []) => {
       id: 'cocina-kds',
       title: 'Cocina & KDS',
       icon: 'bi bi-fire text-danger',
-      submenu: [
-        { title: 'Pantalla KDS', url: 'kitchen/kds', icon: 'bi bi-display-fill' },
-      ]
+      submenu: [{ title: 'Pantalla KDS', url: 'kitchen/kds', icon: 'bi bi-display-fill' }],
     });
   }
 

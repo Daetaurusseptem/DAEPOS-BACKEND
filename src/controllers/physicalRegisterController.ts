@@ -8,7 +8,7 @@ export const createPhysicalRegister = async (req: Request, res: Response) => {
       name,
       description,
       company: companyId,
-      branch: branchId || undefined
+      branch: branchId || undefined,
     });
     await newRegister.save();
     res.status(201).json({ ok: true, register: newRegister });
@@ -21,12 +21,12 @@ export const getPhysicalRegistersByCompany = async (req: Request, res: Response)
   try {
     const { companyId } = req.params;
     const { branchId } = req.query;
-    
+
     const query: any = { company: companyId };
     if (branchId && branchId !== 'undefined' && branchId !== 'null' && branchId !== '') {
       query.branch = branchId;
     }
-    
+
     const registers = await PhysicalRegister.find(query);
     res.status(200).json({ ok: true, registers });
   } catch (error) {

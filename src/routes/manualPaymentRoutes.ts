@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { verifyToken, validarSysAdmin, validarAdminOrSysAdmin } from '../middleware/jwtMiddleware';
-import { 
-  createManualPayment, 
-  getMyPayments, 
-  getAllPayments, 
-  approvePayment, 
-  rejectPayment 
+import {
+  createManualPayment,
+  getMyPayments,
+  getAllPayments,
+  approvePayment,
+  rejectPayment,
 } from '../controllers/manualPaymentController';
 
 const router = Router();

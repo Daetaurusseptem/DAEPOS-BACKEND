@@ -1,11 +1,11 @@
 import express from 'express';
-import { 
-  createPendingOrder, 
-  getActivePendingOrders, 
-  updatePendingOrderStatus, 
-  payAndClosePendingOrder, 
+import {
+  createPendingOrder,
+  getActivePendingOrders,
+  updatePendingOrderStatus,
+  payAndClosePendingOrder,
   cancelPendingOrder,
-  addItemsToPendingOrder
+  addItemsToPendingOrder,
 } from '../controllers/pendingOrderController';
 import { verifyToken } from '../middleware/jwtMiddleware';
 

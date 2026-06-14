@@ -13,17 +13,20 @@ export interface NotificationDocument extends Document {
   createdAt: Date;
 }
 
-const notificationSchema = new Schema<NotificationDocument>({
-  company: { type: Schema.Types.ObjectId, ref: 'Company', required: true },
-  targetBranch: { type: Schema.Types.ObjectId, ref: 'Branch' },
-  targetUser: { type: Schema.Types.ObjectId, ref: 'User' },
-  targetRole: { type: String },
-  type: { type: String, enum: ['info', 'warning', 'error', 'success'], default: 'info' },
-  title: { type: String, required: true },
-  message: { type: String, required: true },
-  readBy: [{ type: Schema.Types.ObjectId, ref: 'User' }],
-  link: { type: String },
-}, { timestamps: true });
+const notificationSchema = new Schema<NotificationDocument>(
+  {
+    company: { type: Schema.Types.ObjectId, ref: 'Company', required: true },
+    targetBranch: { type: Schema.Types.ObjectId, ref: 'Branch' },
+    targetUser: { type: Schema.Types.ObjectId, ref: 'User' },
+    targetRole: { type: String },
+    type: { type: String, enum: ['info', 'warning', 'error', 'success'], default: 'info' },
+    title: { type: String, required: true },
+    message: { type: String, required: true },
+    readBy: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+    link: { type: String },
+  },
+  { timestamps: true },
+);
 
 import { getIO } from '../socket';
 
@@ -50,7 +53,7 @@ notificationSchema.post('save', function (doc) {
       type: doc.type,
       link: doc.link,
       createdAt: doc.createdAt,
-      isRead: false // Newly created is always unread
+      isRead: false, // Newly created is always unread
     };
 
     io.to(targetRoom).emit('new-notification', payload);

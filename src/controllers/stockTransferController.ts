@@ -12,7 +12,7 @@ const SHOULD_USE_TRANSACTIONS = process.env.USE_TRANSACTIONS === 'true' || proce
 
 export const createTransfer = async (req: Request, res: Response) => {
   let session: any = null;
-  
+
   if (SHOULD_USE_TRANSACTIONS) {
     try {
       session = await mongoose.startSession();
@@ -56,7 +56,7 @@ export const createTransfer = async (req: Request, res: Response) => {
         sellingPrice: sourceItem.sellingPrice,
         measurement: sourceItem.measurement,
         product,
-        barCode: sourceItem.barCode
+        barCode: sourceItem.barCode,
       });
     }
 
@@ -76,7 +76,7 @@ export const createTransfer = async (req: Request, res: Response) => {
       quantity,
       createdBy,
       notes,
-      status: 'completed'
+      status: 'completed',
     });
     await transfer.save({ session });
 
@@ -87,16 +87,16 @@ export const createTransfer = async (req: Request, res: Response) => {
       title: 'Salida de Stock por Traspaso',
       message: `Se han enviado ${quantity} unidades del producto hacia otra sucursal.`,
       type: 'warning',
-      link: '/dashboard/admin/inventory/transfers'
+      link: '/dashboard/admin/inventory/transfers',
     });
-    
+
     const notifTo = new Notification({
       company,
       targetBranch: toBranch,
       title: 'Entrada de Stock por Traspaso',
       message: `Se han recibido ${quantity} unidades del producto desde otra sucursal.`,
       type: 'success',
-      link: '/dashboard/admin/inventory/transfers'
+      link: '/dashboard/admin/inventory/transfers',
     });
 
     await notifFrom.save({ session });

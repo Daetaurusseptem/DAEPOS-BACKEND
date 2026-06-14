@@ -1,29 +1,32 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
 interface Category {
-    company: mongoose.Types.ObjectId
-    name:string;
-    description:string;
+  company: mongoose.Types.ObjectId;
+  name: string;
+  description: string;
 }
 
-const CategorySchema = new mongoose.Schema<Category>({
-    company:{
-        type:mongoose.Schema.Types.ObjectId,
-        ref:'Company',
-        required:true
+const CategorySchema = new mongoose.Schema<Category>(
+  {
+    company: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Company',
+      required: true,
     },
     name: {
-        type: String,
-        required: true,
-        trim: true
+      type: String,
+      required: true,
+      trim: true,
     },
     description: {
-        type: String
-    }
-}, { timestamps: true });
+      type: String,
+    },
+  },
+  { timestamps: true },
+);
 
 CategorySchema.index({ company: 1, name: 1 }, { unique: true });
 
 const Category = mongoose.model('Category', CategorySchema);
 
-export default Category
+export default Category;

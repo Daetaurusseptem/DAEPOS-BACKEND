@@ -14,8 +14,8 @@ const sendApprovalEmail = async (email: string, companyName: string, endDate: Da
       service: 'gmail',
       auth: {
         user: process.env.NODEMAILER_EMAIL,
-        pass: process.env.NODEMAILER_PASSWORD
-      }
+        pass: process.env.NODEMAILER_PASSWORD,
+      },
     });
 
     const formattedDate = moment(endDate).format('DD/MM/YYYY');
@@ -29,7 +29,7 @@ const sendApprovalEmail = async (email: string, companyName: string, endDate: Da
         <p>Tu plataforma ya cuenta con todos los accesos habilitados hasta el <b>${formattedDate}</b>.</p>
         <br>
         <p>¡Gracias por confiar en nosotros!</p>
-      `
+      `,
     });
   } catch (error) {
     console.error('Error enviando correo:', error);
@@ -46,7 +46,7 @@ export const createManualPayment = async (req: any, res: Response) => {
       company: companyId,
       uploadedBy: userId,
       amount,
-      planRequested: planRequested || undefined
+      planRequested: planRequested || undefined,
     });
 
     await payment.save();
@@ -89,7 +89,15 @@ export const getAllPayments = async (req: any, res: Response) => {
 export const approvePayment = async (req: any, res: Response) => {
   try {
     const { id } = req.params;
-    const { newEndDate, assignedPlanId, adminNotes, reminderDate, customMaxBranches, customMaxUsers, customMaxRegisters } = req.body;
+    const {
+      newEndDate,
+      assignedPlanId,
+      adminNotes,
+      reminderDate,
+      customMaxBranches,
+      customMaxUsers,
+      customMaxRegisters,
+    } = req.body;
 
     const payment = await ManualPayment.findById(id).populate('company');
     if (!payment) return res.status(404).json({ ok: false, msg: 'Pago no encontrado' });
@@ -111,7 +119,7 @@ export const approvePayment = async (req: any, res: Response) => {
           maxBranches: plan.maxBranches,
           maxUsers: plan.maxUsers,
           maxActiveRegisters: plan.maxActiveRegisters,
-          features: plan.features
+          features: plan.features,
         };
         company.planId = plan._id;
         company.planType = plan.name;
@@ -127,7 +135,7 @@ export const approvePayment = async (req: any, res: Response) => {
     company.currentPeriodEnd = newEndDate ? new Date(newEndDate) : moment().add(1, 'month').toDate();
     company.isActive = true;
     company.subscriptionStatus = 'manual';
-    
+
     if (!company.SubscriptionHistory) company.SubscriptionHistory = [];
     company.SubscriptionHistory.push({
       month: moment().format('YYYY-MM'),
@@ -135,7 +143,7 @@ export const approvePayment = async (req: any, res: Response) => {
       status: 'Active',
       amountPaid: payment.amount,
       paymentMethod: 'Manual',
-      paymentReference: id
+      paymentReference: id,
     });
 
     await company.save();
@@ -166,7 +174,7 @@ export const rejectPayment = async (req: any, res: Response) => {
     payment.reviewedBy = new mongoose.Types.ObjectId(req.uid);
     payment.reviewedAt = new Date();
     payment.adminNotes = adminNotes;
-    
+
     await payment.save();
     res.json({ ok: true, payment });
   } catch (error) {

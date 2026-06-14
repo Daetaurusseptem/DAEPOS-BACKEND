@@ -3,15 +3,15 @@ import mongoose, { Schema, Document, now } from 'mongoose';
 
 // Definición de la interfaz para el documento de usuario
 export interface UserDocument extends Document {
-  companyId?:mongoose.Types.ObjectId;
+  companyId?: mongoose.Types.ObjectId;
   username: string;
   email: string;
   password: string;
   name: string;
   role: 'admin' | 'user' | 'sysadmin' | 'companyAdmin' | 'kitchen';
   branch?: mongoose.Types.ObjectId;
-  img? : string;
-  lastLogin? : Date;
+  img?: string;
+  lastLogin?: Date;
   permissions?: string[];
   isDemo?: boolean;
   active?: boolean;
@@ -23,7 +23,7 @@ const userSchema = new Schema<UserDocument>({
   username: {
     type: String,
     required: true,
-    unique: true, 
+    unique: true,
   },
   companyId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -33,16 +33,16 @@ const userSchema = new Schema<UserDocument>({
   password: {
     type: String,
     required: true,
-    select:false
+    select: false,
   },
-  name: String,  
-  email:{
-    type:String,
-    required:true
-  },
-  role: {  
+  name: String,
+  email: {
     type: String,
-    enum: ['admin', 'user','sysadmin', 'companyAdmin', 'kitchen'],
+    required: true,
+  },
+  role: {
+    type: String,
+    enum: ['admin', 'user', 'sysadmin', 'companyAdmin', 'kitchen'],
     default: 'user',
     required: true,
   },
@@ -50,29 +50,29 @@ const userSchema = new Schema<UserDocument>({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Branch',
   },
-  img:{
-    type:String
+  img: {
+    type: String,
   },
-  lastLogin:{
-    type:Date,
-    default:Date.now
+  lastLogin: {
+    type: Date,
+    default: Date.now,
   },
   permissions: {
     type: [String],
-    default: []
+    default: [],
   },
   isDemo: {
     type: Boolean,
-    default: false
+    default: false,
   },
   active: {
     type: Boolean,
-    default: true
+    default: true,
   },
   deactivationReason: {
     type: String,
-    default: ''
-  }
+    default: '',
+  },
   // Define otros campos de usuario según tus necesidades
 });
 

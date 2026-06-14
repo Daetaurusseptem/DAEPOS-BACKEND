@@ -18,35 +18,43 @@ const deductStockForSimpleItem = async (itemId: string, quantity: number) => {
 };
 
 // Función para deducir ingredientes para un ítem compuesto
-const deductIngredientsForCompositeItem = async (recipeId: any, quantity: number, branchId: any, multiplier: number = 1, sizeName?: string) => {
+const deductIngredientsForCompositeItem = async (
+  recipeId: any,
+  quantity: number,
+  branchId: any,
+  multiplier: number = 1,
+  sizeName?: string,
+) => {
   const recipe = await Recipe.findById(recipeId).populate('sizes.ingredients.ingredient');
   if (!recipe) throw new Error('Receta no encontrada.');
 
   let targetSize;
   if (sizeName) {
-     targetSize = recipe.sizes.find(s => s.name === sizeName);
+    targetSize = recipe.sizes.find((s) => s.name === sizeName);
   }
   if (!targetSize && recipe.sizes && recipe.sizes.length > 0) {
-     targetSize = recipe.sizes[0]; // Fallback al primero
+    targetSize = recipe.sizes[0]; // Fallback al primero
   }
 
   if (!targetSize || !targetSize.ingredients) {
-     throw new Error(`La receta no tiene ingredientes configurados para el tamaño especificado.`);
+    throw new Error(`La receta no tiene ingredientes configurados para el tamaño especificado.`);
   }
 
   for (const recipeIngredient of targetSize.ingredients) {
-      const ingredientItem = await InventoryItem.findOne({ 
-        rawMaterial: recipeIngredient.ingredient._id, 
-        branch: branchId 
-      });
-      if (!ingredientItem) {
-        throw new Error(`Insumo ${(recipeIngredient.ingredient as any).name || 'desconocido'} no está registrado en esta sucursal.`);
-      }
-      ingredientItem.stock -= recipeIngredient.quantity * quantity * multiplier;
-      if (ingredientItem.stock < 0) {
-        throw new Error(`Stock insuficiente de ${ingredientItem.name} en esta sucursal.`);
-      }
-      await ingredientItem.save();
+    const ingredientItem = await InventoryItem.findOne({
+      rawMaterial: recipeIngredient.ingredient._id,
+      branch: branchId,
+    });
+    if (!ingredientItem) {
+      throw new Error(
+        `Insumo ${(recipeIngredient.ingredient as any).name || 'desconocido'} no está registrado en esta sucursal.`,
+      );
+    }
+    ingredientItem.stock -= recipeIngredient.quantity * quantity * multiplier;
+    if (ingredientItem.stock < 0) {
+      throw new Error(`Stock insuficiente de ${ingredientItem.name} en esta sucursal.`);
+    }
+    await ingredientItem.save();
   }
 };
 
@@ -54,14 +62,21 @@ const deductIngredientsForCompositeItem = async (recipeId: any, quantity: number
 const processSale = async (productsSold: any[], branchId: any) => {
   for (const productSold of productsSold) {
     const item = await InventoryItem.findOne({ product: productSold.product, branch: branchId }).populate('product');
-    if (!item) throw new Error(`El producto ${productSold.product} no está registrado en el inventario de esta sucursal.`);
-    
+    if (!item)
+      throw new Error(`El producto ${productSold.product} no está registrado en el inventario de esta sucursal.`);
+
     const product = await Product.findById((item.product as any)._id);
     if (!product) throw new Error('Producto no encontrado.');
 
-    if (product.isComposite) { 
+    if (product.isComposite) {
       if (!product.recipe) throw new Error('El producto compuesto no tiene receta asociada.');
-      await deductIngredientsForCompositeItem(product.recipe, productSold.quantity, branchId, productSold.multiplier || 1, productSold.sizeName);
+      await deductIngredientsForCompositeItem(
+        product.recipe,
+        productSold.quantity,
+        branchId,
+        productSold.multiplier || 1,
+        productSold.sizeName,
+      );
     } else {
       await deductStockForSimpleItem(item._id.toString(), productSold.quantity);
     }
@@ -73,17 +88,17 @@ const rollbackInventory = async (productsSold: any[], branchId: any) => {
   for (const productSold of productsSold) {
     const item = await InventoryItem.findOne({ product: productSold.product, branch: branchId }).populate('product');
     if (!item) continue; // Si no existe, no podemos reabastecer
-    
+
     const product = await Product.findById((item.product as any)._id);
     if (!product) continue;
 
-    if (product.isComposite) { 
+    if (product.isComposite) {
       if (!product.recipe) continue;
       const recipe = await Recipe.findById(product.recipe).populate('sizes.ingredients.ingredient');
       if (recipe) {
         let targetSize;
         if (productSold.sizeName) {
-          targetSize = recipe.sizes.find(s => s.name === productSold.sizeName);
+          targetSize = recipe.sizes.find((s) => s.name === productSold.sizeName);
         }
         if (!targetSize && recipe.sizes && recipe.sizes.length > 0) {
           targetSize = recipe.sizes[0];
@@ -91,14 +106,14 @@ const rollbackInventory = async (productsSold: any[], branchId: any) => {
 
         if (targetSize && targetSize.ingredients) {
           for (const recipeIngredient of targetSize.ingredients) {
-              const ingredientItem = await InventoryItem.findOne({ 
-                rawMaterial: recipeIngredient.ingredient._id, 
-                branch: branchId 
-              });
-              if (ingredientItem) {
-                ingredientItem.stock += recipeIngredient.quantity * productSold.quantity * (productSold.multiplier || 1);
-                await ingredientItem.save();
-              }
+            const ingredientItem = await InventoryItem.findOne({
+              rawMaterial: recipeIngredient.ingredient._id,
+              branch: branchId,
+            });
+            if (ingredientItem) {
+              ingredientItem.stock += recipeIngredient.quantity * productSold.quantity * (productSold.multiplier || 1);
+              await ingredientItem.save();
+            }
           }
         }
       }
@@ -112,22 +127,22 @@ const rollbackInventory = async (productsSold: any[], branchId: any) => {
 // Crear una orden pendiente
 export const createPendingOrder = async (req: Request, res: Response) => {
   try {
-    const { 
-      table, 
-      clientName, 
-      type, 
-      inRestaurantDetails, 
-      driveThruDetails, 
+    const {
+      table,
+      clientName,
+      type,
+      inRestaurantDetails,
+      driveThruDetails,
       deliveryDetails,
-      productsSold, 
-      total, 
-      discount, 
-      company, 
-      branch, 
-      cashRegister, 
-      customer, 
+      productsSold,
+      total,
+      discount,
+      company,
+      branch,
+      cashRegister,
+      customer,
       appliedPromotion,
-      waiter
+      waiter,
     } = req.body;
 
     // Validar caja abierta
@@ -140,15 +155,15 @@ export const createPendingOrder = async (req: Request, res: Response) => {
     const branchIdToSearch = typeof branch === 'object' && branch._id ? branch._id : branch;
     const branchDoc = await Branch.findById(branchIdToSearch);
     const isKitchenEnabled = branchDoc?.kitchenSettings?.enableKitchenModule ?? false;
-    
-    // Validar si la caja no ha excedido su tiempo de vida máximo
     const maxShiftDurationHours = branchDoc?.shiftSettings?.maxShiftDurationHours || 12;
     const hoursOpen = (new Date().getTime() - register.startDate.getTime()) / (1000 * 60 * 60);
 
     if (hoursOpen > maxShiftDurationHours) {
-        return res.status(400).json({ message: `La caja ha excedido el tiempo máximo permitido de ${maxShiftDurationHours} horas. Por favor, solicita a un gerente que realice el corte de caja.` });
+      return res.status(400).json({
+        message: `La caja ha excedido el tiempo máximo permitido de ${maxShiftDurationHours} horas. Por favor, solicita a un gerente que realice el corte de caja.`,
+      });
     }
-    
+
     let calculatedStatus: any = 'pending';
     let prepStartedAt: Date | undefined = undefined;
 
@@ -156,12 +171,6 @@ export const createPendingOrder = async (req: Request, res: Response) => {
       calculatedStatus = 'in_kitchen';
       prepStartedAt = new Date();
     }
-    console.log("=== DEBUG CREATE PENDING ORDER ===");
-    console.log("Branch passed:", branch);
-    console.log("BranchIdToSearch:", branchIdToSearch);
-    console.log("BranchDoc found:", branchDoc ? branchDoc._id : 'null');
-    console.log("isKitchenEnabled:", isKitchenEnabled);
-    console.log("calculatedStatus:", calculatedStatus);
 
     // Reserva de inventario en cuanto se crea la orden
     await processSale(productsSold, branch);
@@ -186,7 +195,7 @@ export const createPendingOrder = async (req: Request, res: Response) => {
         multiplier: p.multiplier,
         modifications: p.modifications || [],
         sizeName: p.sizeName,
-        status: 'sent_to_kitchen'
+        status: 'sent_to_kitchen',
       })),
       total,
       discount,
@@ -194,11 +203,11 @@ export const createPendingOrder = async (req: Request, res: Response) => {
       branch,
       cashRegister,
       customer,
-      appliedPromotion
+      appliedPromotion,
     });
 
     const savedOrder = await newOrder.save();
-    
+
     // Emitir evento WS a la sala correcta (string ID)
     getIO().to(branchIdToSearch.toString()).emit('kds-update', savedOrder);
 
@@ -212,8 +221,8 @@ export const createPendingOrder = async (req: Request, res: Response) => {
 export const getActivePendingOrders = async (req: Request, res: Response) => {
   try {
     const { branchId, companyId } = req.query;
-    let query: any = { kitchenStatus: { $in: ['pending', 'in_kitchen', 'ready', 'delivered'] } };
-    
+    const query: any = { kitchenStatus: { $in: ['pending', 'in_kitchen', 'ready', 'delivered'] } };
+
     if (companyId) query.company = companyId;
     if (branchId) query.branch = branchId;
 
@@ -234,10 +243,26 @@ export const getActivePendingOrders = async (req: Request, res: Response) => {
 export const updatePendingOrderStatus = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { status } = req.body; // 'pending' | 'in_kitchen' | 'ready' | 'delivered' | 'completed' | 'canceled'
+    const { status } = req.body; // 'pending' | 'in_kitchen' | 'ready' | 'delivered' | 'canceled'
 
     const order = await PendingOrder.findById(id);
     if (!order) return res.status(404).json({ message: 'Orden pendiente no encontrada.' });
+
+    // Validar transiciones de estado permitidas
+    const allowedTransitions: Record<string, string[]> = {
+      pending: ['in_kitchen', 'canceled'],
+      in_kitchen: ['ready', 'canceled'],
+      ready: ['delivered', 'in_kitchen', 'canceled'],
+      delivered: [],
+      canceled: [],
+    };
+
+    const currentStatus = order.kitchenStatus;
+    if (!allowedTransitions[currentStatus]?.includes(status)) {
+      return res.status(400).json({
+        message: `No se puede cambiar de estado "${currentStatus}" a "${status}".`,
+      });
+    }
 
     order.kitchenStatus = status;
 
@@ -254,7 +279,7 @@ export const updatePendingOrderStatus = async (req: Request, res: Response) => {
     }
 
     await order.save();
-    
+
     // Emitir evento WS
     getIO().to(order.branch.toString()).emit('kds-update', order);
 
@@ -292,7 +317,7 @@ export const payAndClosePendingOrder = async (req: Request, res: Response) => {
       method: paymentMethod,
       amount: currentPaymentAmount,
       reference: paymentReference,
-      date: new Date()
+      date: new Date(),
     });
 
     const totalPaid = order.payments.reduce((acc, p) => acc + p.amount, 0);
@@ -300,6 +325,8 @@ export const payAndClosePendingOrder = async (req: Request, res: Response) => {
     // Actualiza la caja registradora con este pago
     if (paymentMethod === 'cash') {
       register.payments.cash = (register.payments.cash || 0) + currentPaymentAmount;
+    } else if (paymentMethod === 'debit') {
+      register.payments.debit = (register.payments.debit || 0) + currentPaymentAmount;
     } else {
       register.payments.credit = (register.payments.credit || 0) + currentPaymentAmount;
     }
@@ -319,7 +346,7 @@ export const payAndClosePendingOrder = async (req: Request, res: Response) => {
 
     // Determinar método de pago para la Venta (mixed si hay más de 1 pago diferente)
     let finalPaymentMethod: any = order.payments[0].method;
-    if (order.payments.some(p => p.method !== finalPaymentMethod)) {
+    if (order.payments.some((p) => p.method !== finalPaymentMethod)) {
       finalPaymentMethod = 'mixed';
     }
 
@@ -340,10 +367,14 @@ export const payAndClosePendingOrder = async (req: Request, res: Response) => {
       branch: order.branch,
       customer: order.customer,
       appliedPromotion: order.appliedPromotion,
-      deliveryDetails: order.deliveryDetails
+      deliveryDetails: order.deliveryDetails,
     });
 
     await newSale.save();
+
+    // Agregar la venta al array de ventas de la caja registradora
+    register.sales.push(newSale._id as any);
+    await register.save();
 
     res.status(200).json({ ok: true, sale: newSale });
   } catch (error: any) {
@@ -370,19 +401,19 @@ export const addItemsToPendingOrder = async (req: Request, res: Response) => {
     // Marcar los nuevos productos
     const itemsToAdd = newProductsSold.map((p: any) => ({
       ...p,
-      status: 'pending_kitchen'
+      status: 'pending_kitchen',
     }));
 
     order.productsSold.push(...itemsToAdd);
     order.total += additionalTotal;
-    
+
     // Si la orden estaba "ready", al añadir nuevos ítems debería regresar a "in_kitchen" para que el cocinero lo vea
     if (order.kitchenStatus === 'ready') {
       order.kitchenStatus = 'in_kitchen';
     }
 
     await order.save();
-    
+
     // Emitir evento WS
     getIO().to(order.branch.toString()).emit('kds-update', order);
 
@@ -398,6 +429,23 @@ export const cancelPendingOrder = async (req: Request, res: Response) => {
     const { id } = req.params;
     const order = await PendingOrder.findById(id);
     if (!order) return res.status(404).json({ message: 'Orden no encontrada.' });
+
+    // Revertir pagos parciales de la caja registradora
+    if (order.paymentStatus === 'partial' && order.payments && order.payments.length > 0) {
+      const register = await CashRegister.findById(order.cashRegister);
+      if (register) {
+        const totalPaid = order.payments.reduce((acc: number, p: any) => acc + p.amount, 0);
+        register.expectedAmount = (register.expectedAmount || 0) - totalPaid;
+        for (const payment of order.payments) {
+          if (payment.method === 'cash') {
+            register.payments.cash = (register.payments.cash || 0) - payment.amount;
+          } else {
+            register.payments.credit = (register.payments.credit || 0) - payment.amount;
+          }
+        }
+        await register.save();
+      }
+    }
 
     order.kitchenStatus = 'canceled';
     await order.save();

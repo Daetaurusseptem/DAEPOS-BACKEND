@@ -108,12 +108,12 @@ export class Server {
       if (req.path.startsWith('/api')) {
         return next();
       }
-      
+
       const frontendDist = path.join(__dirname, '../../../frontend/dist/daepoint-pos-frontend');
       const localPublic = path.join(__dirname, '../public');
       const frontendIndex = path.join(frontendDist, 'index.html');
       const localPublicIndex = path.join(localPublic, 'index.html');
-      
+
       res.sendFile(frontendIndex, (err) => {
         if (err) {
           res.sendFile(localPublicIndex, (err2) => {
@@ -145,7 +145,7 @@ export class Server {
           method: req.method,
           errorMessage: err.message || String(err),
           stackTrace: err.stack || 'No stack trace available',
-          status: err.status || 500
+          status: err.status || 500,
         });
 
         await newError.save();
@@ -156,30 +156,31 @@ export class Server {
       res.status(err.status || 500).json({
         ok: false,
         msg: 'Ha ocurrido un error interno en el servidor.',
-        error: err.message || String(err)
+        error: err.message || String(err),
       });
     });
   }
 
-
   private async connectToDatabase(): Promise<void> {
-    try { 
+    try {
       require('../config/db');
-      
     } catch (error) {
-      console.error('Unable to connect to the database:', error); 
+      console.error('Unable to connect to the database:', error);
     }
   }
 
   private start(): void {
     this.httpServer.listen(this.port, '0.0.0.0', () => {
       console.log(`Server is running on port ${this.port}`);
-      
+
       // Auto-Cleanup Fallback: Ejecuta la limpieza de cajas/comandas viejas cada hora
-      setInterval(() => {
-        console.log('[CRON] Ejecutando Auto-Limpieza programada...');
-        runAutoCleanup();
-      }, 60 * 60 * 1000);
+      setInterval(
+        () => {
+          console.log('[CRON] Ejecutando Auto-Limpieza programada...');
+          runAutoCleanup();
+        },
+        60 * 60 * 1000,
+      );
     });
   }
 }

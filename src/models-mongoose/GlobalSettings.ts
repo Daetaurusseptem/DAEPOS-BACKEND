@@ -18,10 +18,10 @@ const globalSettingsSchema = new Schema<GlobalSettingsDocument>({
     accountName: { type: String, default: '' },
     accountNumber: { type: String, default: '' },
     clabe: { type: String, default: '' },
-    extraNotes: { type: String, default: '' }
+    extraNotes: { type: String, default: '' },
   },
   contactEmail: { type: String, default: '' },
-  updatedAt: { type: Date, default: Date.now }
+  updatedAt: { type: Date, default: Date.now },
 });
 
 export default mongoose.model<GlobalSettingsDocument>('GlobalSettings', globalSettingsSchema);

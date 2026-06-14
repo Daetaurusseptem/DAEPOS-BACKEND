@@ -1,5 +1,12 @@
 import express from 'express';
-import { getSalesStatistics, getItemsStatistics, getIngredientsStatistics, getTopSellingProductsByWeek, getIngredientsStatisticsByWeek, getDashboardSummary } from '../controllers/statisticsController';
+import {
+  getSalesStatistics,
+  getItemsStatistics,
+  getIngredientsStatistics,
+  getTopSellingProductsByWeek,
+  getIngredientsStatisticsByWeek,
+  getDashboardSummary,
+} from '../controllers/statisticsController';
 
 const router = express.Router();
 

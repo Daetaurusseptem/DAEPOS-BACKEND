@@ -26,13 +26,11 @@ export const getGlobalMetrics = async (req: Request, res: Response) => {
     let gmv = 0;
 
     // Usar caché si está disponible y vigente
-    if (cachedGMV !== null && (now - lastGMVCacheTime) < GMV_CACHE_TTL) {
+    if (cachedGMV !== null && now - lastGMVCacheTime < GMV_CACHE_TTL) {
       gmv = cachedGMV;
     } else {
       // GMV Global (Volumen transaccional total) - Solo calcular si expiró caché
-      const gmvAggregate = await Sale.aggregate([
-        { $group: { _id: null, total: { $sum: '$total' } } }
-      ]);
+      const gmvAggregate = await Sale.aggregate([{ $group: { _id: null, total: { $sum: '$total' } } }]);
       gmv = gmvAggregate[0]?.total || 0;
       cachedGMV = gmv;
       lastGMVCacheTime = now;
@@ -60,9 +58,9 @@ export const getGlobalMetrics = async (req: Request, res: Response) => {
         gmv,
         activeCompanies,
         totalErrors,
-        openRegisters: openRegistersCount
+        openRegisters: openRegistersCount,
       },
-      liveFeed
+      liveFeed,
     });
   } catch (error) {
     res.status(500).json({ ok: false, msg: 'Error al obtener métricas globales', error });
@@ -79,7 +77,7 @@ export const seedPlans = async (req: Request, res: Response) => {
         maxUsers: 3,
         maxActiveRegisters: 1,
         features: ['basic_reports'],
-        isActive: true
+        isActive: true,
       },
       {
         name: 'Plan Pro',
@@ -88,7 +86,7 @@ export const seedPlans = async (req: Request, res: Response) => {
         maxUsers: 10,
         maxActiveRegisters: 3,
         features: ['basic_reports', 'advanced_reports', 'kds', 'inventory_transfers'],
-        isActive: true
+        isActive: true,
       },
       {
         name: 'Plan Enterprise',
@@ -97,16 +95,12 @@ export const seedPlans = async (req: Request, res: Response) => {
         maxUsers: -1,
         maxActiveRegisters: -1,
         features: ['basic_reports', 'advanced_reports', 'kds', 'inventory_transfers', 'api_access'],
-        isActive: true
-      }
+        isActive: true,
+      },
     ];
 
     for (const plan of plans) {
-      await SubscriptionPlan.findOneAndUpdate(
-        { name: plan.name },
-        plan,
-        { upsert: true, new: true }
-      );
+      await SubscriptionPlan.findOneAndUpdate({ name: plan.name }, plan, { upsert: true, new: true });
     }
 
     res.status(200).json({ ok: true, msg: 'Planes inicializados con éxito' });
@@ -130,7 +124,7 @@ export const onboardCompanyExpress = async (req: Request, res: Response) => {
     email,
     password,
     name,
-    planId
+    planId,
   } = req.body;
 
   // Usar transacciones solo en producciÃ³n (requiere MongoDB Replica Set)
@@ -179,7 +173,7 @@ export const onboardCompanyExpress = async (req: Request, res: Response) => {
       planId: planId || undefined,
       planType: planType,
       billingType: billingType,
-      subscriptionStatus: subStatus
+      subscriptionStatus: subStatus,
     });
     const savedCompany = await newCompany.save(session ? { session } : undefined);
 
@@ -190,7 +184,7 @@ export const onboardCompanyExpress = async (req: Request, res: Response) => {
       tel: branchTel || companyTel,
       email: companyEmail,
       company: savedCompany._id,
-      saleType: saleType || 'retail'
+      saleType: saleType || 'retail',
     });
     const savedBranch = await newBranch.save(session ? { session } : undefined);
 
@@ -206,7 +200,7 @@ export const onboardCompanyExpress = async (req: Request, res: Response) => {
       companyId: savedCompany._id,
       branch: savedBranch._id, // Asociar tambiÃ©n a la primera sucursal para rapidez
       img: 'no-image',
-      permissions: ['inventory_management', 'sales_reports', 'customer_management']
+      permissions: ['inventory_management', 'sales_reports', 'customer_management'],
     });
     const savedUser = await newUser.save(session ? { session } : undefined);
 
@@ -225,8 +219,8 @@ export const onboardCompanyExpress = async (req: Request, res: Response) => {
         name: savedUser.name,
         username: savedUser.username,
         email: savedUser.email,
-        role: savedUser.role
-      }
+        role: savedUser.role,
+      },
     });
   } catch (error) {
     if (session) {
@@ -247,7 +241,7 @@ export const impersonateCompany = async (req: Request, res: Response) => {
     if (!targetUser) {
       return res.status(404).json({
         ok: false,
-        msg: 'No se encontrÃ³ un administrador para impersonar en esta empresa'
+        msg: 'No se encontrÃ³ un administrador para impersonar en esta empresa',
       });
     }
 
@@ -265,8 +259,8 @@ export const impersonateCompany = async (req: Request, res: Response) => {
         email: targetUser.email,
         role: targetUser.role,
         companyId: targetUser.companyId,
-        branch: targetUser.branch
-      }
+        branch: targetUser.branch,
+      },
     });
   } catch (error) {
     res.status(500).json({ ok: false, msg: 'Error al generar token de impersonaciÃ³n', error });
@@ -277,13 +271,13 @@ export const impersonateCompany = async (req: Request, res: Response) => {
 export const getSystemErrors = async (req: Request, res: Response) => {
   try {
     const { page = 1, limit = 20, companyId, status, method, startDate, endDate } = req.query;
-    
+
     const query: any = {};
-    
+
     if (companyId && companyId !== 'null' && companyId !== '') query.companyId = companyId;
     if (status && status !== 'null' && status !== '') query.status = parseInt(status as string, 10);
     if (method && method !== 'null' && method !== '') query.method = method;
-    
+
     if ((startDate && startDate !== 'null' && startDate !== '') || (endDate && endDate !== 'null' && endDate !== '')) {
       query.timestamp = {};
       if (startDate && startDate !== 'null' && startDate !== '') query.timestamp.$gte = new Date(startDate as string);
@@ -295,12 +289,8 @@ export const getSystemErrors = async (req: Request, res: Response) => {
     const skip = (pageNum - 1) * limitNum;
 
     const [errors, total] = await Promise.all([
-      SystemError.find(query)
-        .sort({ timestamp: -1 })
-        .skip(skip)
-        .limit(limitNum)
-        .populate('companyId', 'name'),
-      SystemError.countDocuments(query)
+      SystemError.find(query).sort({ timestamp: -1 }).skip(skip).limit(limitNum).populate('companyId', 'name'),
+      SystemError.countDocuments(query),
     ]);
 
     res.status(200).json({
@@ -308,7 +298,7 @@ export const getSystemErrors = async (req: Request, res: Response) => {
       errors,
       total,
       page: pageNum,
-      pages: Math.ceil(total / limitNum)
+      pages: Math.ceil(total / limitNum),
     });
   } catch (error) {
     res.status(500).json({ ok: false, msg: 'Error al obtener los errores de sistema', error });
@@ -319,7 +309,7 @@ export const getSystemErrors = async (req: Request, res: Response) => {
 export const searchCompanySubscriptions = async (req: Request, res: Response) => {
   try {
     const { page = 1, limit = 20, status, planId, query: textQuery } = req.query;
-    
+
     const query: any = {};
     if (status && status !== 'null' && status !== '') query.subscriptionStatus = status;
     if (planId && planId !== 'null' && planId !== '') query.planId = planId;
@@ -332,13 +322,9 @@ export const searchCompanySubscriptions = async (req: Request, res: Response) =>
     const skip = (pageNum - 1) * limitNum;
 
     const [companies, total, allCompanies] = await Promise.all([
-      Company.find(query)
-        .populate('planId', 'name price')
-        .skip(skip)
-        .limit(limitNum)
-        .sort({ createdAt: -1 }),
+      Company.find(query).populate('planId', 'name price').skip(skip).limit(limitNum).sort({ createdAt: -1 }),
       Company.countDocuments(query),
-      Company.find({}, 'subscriptionStatus planId isActive').populate('planId', 'price')
+      Company.find({}, 'subscriptionStatus planId isActive').populate('planId', 'price'),
     ]);
 
     // Calcular KPIs
@@ -348,7 +334,7 @@ export const searchCompanySubscriptions = async (req: Request, res: Response) =>
     let canceled = 0;
     let mrr = 0;
 
-    allCompanies.forEach(c => {
+    allCompanies.forEach((c) => {
       if (!c.isActive || c.subscriptionStatus === 'canceled') canceled++;
       else if (c.subscriptionStatus === 'active' || c.subscriptionStatus === 'manual') active++;
       else if (c.subscriptionStatus === 'trialing') trialing++;
@@ -372,8 +358,8 @@ export const searchCompanySubscriptions = async (req: Request, res: Response) =>
         trialing,
         pastDue,
         canceled,
-        mrr
-      }
+        mrr,
+      },
     });
   } catch (error) {
     res.status(500).json({ ok: false, msg: 'Error al buscar suscripciones', error });
@@ -397,16 +383,15 @@ export const overrideSubscription = async (req: Request, res: Response) => {
     if (isTurningOn) {
       company.previousSubscriptionState = {
         status: company.subscriptionStatus,
-        currentPeriodEnd: company.currentPeriodEnd || new Date()
+        currentPeriodEnd: company.currentPeriodEnd || new Date(),
       };
-      
+
       if (status) company.subscriptionStatus = status;
       if (currentPeriodEnd) company.currentPeriodEnd = new Date(currentPeriodEnd);
       company.manualOverride = true;
-    } 
-    else if (isTurningOff) {
+    } else if (isTurningOff) {
       company.manualOverride = false;
-      
+
       // 1. Restaurar de memoria
       if (company.previousSubscriptionState && company.previousSubscriptionState.status) {
         company.subscriptionStatus = company.previousSubscriptionState.status as any;
@@ -414,7 +399,7 @@ export const overrideSubscription = async (req: Request, res: Response) => {
           company.currentPeriodEnd = company.previousSubscriptionState.currentPeriodEnd;
         }
       }
-      
+
       // 2. Fetch from Stripe para asegurar la verdad absoluta
       if (company.stripeSubscriptionId) {
         try {
@@ -429,10 +414,9 @@ export const overrideSubscription = async (req: Request, res: Response) => {
           console.error('Error fetching subscription truth from stripe during fallback', err);
         }
       }
-      
+
       company.previousSubscriptionState = undefined;
-    } 
-    else {
+    } else {
       // Simplemente se están actualizando propiedades sin cambiar el estado del switch
       if (status) company.subscriptionStatus = status;
       if (currentPeriodEnd) company.currentPeriodEnd = new Date(currentPeriodEnd);
@@ -440,7 +424,7 @@ export const overrideSubscription = async (req: Request, res: Response) => {
     }
 
     const updated = await company.save();
-    
+
     res.status(200).json({ ok: true, company: updated, msg: 'Gestión B2B actualizada correctamente' });
   } catch (error) {
     res.status(500).json({ ok: false, msg: 'Error al actualizar gestión B2B', error });
@@ -451,7 +435,7 @@ export const overrideSubscription = async (req: Request, res: Response) => {
 export const getSubscriptionDetails = async (req: Request, res: Response) => {
   try {
     const { companyId } = req.params;
-    
+
     const company = await Company.findById(companyId).populate('planId', 'name price');
     if (!company) {
       return res.status(404).json({ ok: false, msg: 'Empresa no encontrada' });
@@ -469,7 +453,7 @@ export const getSubscriptionDetails = async (req: Request, res: Response) => {
         if (!company.stripeCustomerId.includes('_123')) {
           const invoicesResponse = await stripe.invoices.list({
             customer: company.stripeCustomerId,
-            limit: 3
+            limit: 3,
           });
           stripeInvoices = invoicesResponse.data.map((inv: any) => ({
             id: inv.id,
@@ -477,7 +461,7 @@ export const getSubscriptionDetails = async (req: Request, res: Response) => {
             amount_due: inv.amount_due,
             status: inv.status,
             invoice_pdf: inv.invoice_pdf,
-            created: inv.created
+            created: inv.created,
           }));
         }
       } catch (err: any) {
@@ -494,7 +478,7 @@ export const getSubscriptionDetails = async (req: Request, res: Response) => {
 
           const upcoming = await stripe.invoices.retrieveUpcoming({
             customer: company.stripeCustomerId,
-            subscription: company.stripeSubscriptionId
+            subscription: company.stripeSubscriptionId,
           });
           if (upcoming) {
             nextPaymentAmount = upcoming.amount_due;
@@ -519,17 +503,16 @@ export const getSubscriptionDetails = async (req: Request, res: Response) => {
         isActive: company.isActive,
         planId: company.planId,
         manualOverride: company.manualOverride,
-        currentPeriodEnd: company.currentPeriodEnd
+        currentPeriodEnd: company.currentPeriodEnd,
       },
       stripeData: {
         stripeStatus,
         cancelAtPeriodEnd,
         nextPayment,
         nextPaymentAmount,
-        invoices: stripeInvoices
-      }
+        invoices: stripeInvoices,
+      },
     });
-
   } catch (error) {
     res.status(500).json({ ok: false, msg: 'Error al obtener el detalle de la suscripción' });
   }
@@ -575,7 +558,7 @@ export const getCompanyTelemetry = async (req: Request, res: Response) => {
     // GMV de la empresa
     const gmvAggregate = await Sale.aggregate([
       { $match: { company: new mongoose.Types.ObjectId(companyId) } },
-      { $group: { _id: null, total: { $sum: '$total' } } }
+      { $group: { _id: null, total: { $sum: '$total' } } },
     ]);
     const gmv = gmvAggregate[0]?.total || 0;
 
@@ -599,8 +582,8 @@ export const getCompanyTelemetry = async (req: Request, res: Response) => {
         usersCount,
         openRegistersCount,
         isActive: company?.isActive !== false,
-        status: company?.isActive ? 'active' : 'inactive'
-      }
+        status: company?.isActive ? 'active' : 'inactive',
+      },
     });
   } catch (error) {
     res.status(500).json({ ok: false, msg: 'Error al obtener telemetrÃ­a de la empresa', error });
@@ -613,7 +596,15 @@ import { enforceDowngradeLimits } from '../helpers/enforceDowngradeLimits';
 export const updateCompanySubscriptionManual = async (req: Request, res: Response) => {
   try {
     const { companyId } = req.params;
-    const { subscriptionStatus, currentPeriodEnd, manualOverride, planType, planId, customLimitsOverrides, snapshotExpirationDate } = req.body;
+    const {
+      subscriptionStatus,
+      currentPeriodEnd,
+      manualOverride,
+      planType,
+      planId,
+      customLimitsOverrides,
+      snapshotExpirationDate,
+    } = req.body;
 
     const company = await Company.findById(companyId);
     if (!company) {
@@ -631,7 +622,7 @@ export const updateCompanySubscriptionManual = async (req: Request, res: Respons
     if (manualOverride !== undefined) company.manualOverride = manualOverride;
     if (planType !== undefined) company.planType = planType;
     if (customLimitsOverrides !== undefined) company.customLimitsOverrides = customLimitsOverrides;
-    
+
     if (snapshotExpirationDate !== undefined) {
       company.snapshotExpirationDate = snapshotExpirationDate ? new Date(snapshotExpirationDate) : undefined;
     }
@@ -645,7 +636,7 @@ export const updateCompanySubscriptionManual = async (req: Request, res: Respons
           maxBranches: plan.maxBranches,
           maxUsers: plan.maxUsers,
           maxActiveRegisters: plan.maxActiveRegisters,
-          features: plan.features
+          features: plan.features,
         };
       }
     }
@@ -658,7 +649,7 @@ export const updateCompanySubscriptionManual = async (req: Request, res: Respons
     res.status(200).json({
       ok: true,
       msg: 'Suscripción actualizada exitosamente',
-      company
+      company,
     });
   } catch (error) {
     res.status(500).json({ ok: false, msg: 'Error al actualizar suscripción manualmente', error });
@@ -725,7 +716,7 @@ export const getSaleForensics = async (req: Request, res: Response) => {
       .populate('appliedPromotion', 'name discountPercentage')
       .populate({
         path: 'productsSold.product',
-        select: 'name category price cost'
+        select: 'name category price cost',
       });
 
     if (!sale) {
@@ -742,13 +733,13 @@ export const getSaleForensics = async (req: Request, res: Response) => {
 export const searchGlobalTransactions = async (req: Request, res: Response) => {
   try {
     const { page = 1, limit = 20, companyId, branchId, startDate, endDate, paymentMethod } = req.query;
-    
+
     const query: any = {};
-    
+
     if (companyId && companyId !== 'null' && companyId !== '') query.company = companyId;
     if (branchId && branchId !== 'null' && branchId !== '') query.branch = branchId;
     if (paymentMethod && paymentMethod !== 'null' && paymentMethod !== '') query.paymentMethod = paymentMethod;
-    
+
     if ((startDate && startDate !== 'null') || (endDate && endDate !== 'null')) {
       query.date = {};
       if (startDate && startDate !== 'null') query.date.$gte = new Date(startDate as string);
@@ -758,7 +749,7 @@ export const searchGlobalTransactions = async (req: Request, res: Response) => {
     const pageNum = parseInt(page as string, 10);
     const limitNum = parseInt(limit as string, 10);
     const skip = (pageNum - 1) * limitNum;
-    
+
     const [transactions, total] = await Promise.all([
       Sale.find(query)
         .sort({ date: -1 })
@@ -767,7 +758,7 @@ export const searchGlobalTransactions = async (req: Request, res: Response) => {
         .populate('company', 'name')
         .populate('branch', 'name')
         .populate('user', 'name role'),
-      Sale.countDocuments(query)
+      Sale.countDocuments(query),
     ]);
 
     const totalPages = Math.ceil(total / limitNum);
@@ -777,10 +768,9 @@ export const searchGlobalTransactions = async (req: Request, res: Response) => {
       transactions,
       total,
       page: pageNum,
-      totalPages
+      totalPages,
     });
   } catch (error) {
     res.status(500).json({ ok: false, msg: 'Error al buscar transacciones globales', error });
   }
 };
-

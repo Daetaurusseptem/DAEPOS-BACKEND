@@ -17,7 +17,7 @@ import {
   overrideSubscription,
   getSubscriptionDetails,
   getGlobalSettings,
-  updateGlobalSettings
+  updateGlobalSettings,
 } from '../controllers/sysadminController';
 import { verifyToken, validarSysAdmin } from '../middleware/jwtMiddleware';
 

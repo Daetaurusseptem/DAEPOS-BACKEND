@@ -1,24 +1,35 @@
 // src/routes/supplierRoutes.ts
 
 import express from 'express';
-import { 
-    createSupplier, 
-    deleteSupplier, 
-    getAllSuppliers, 
-    getCompanySuppliers, 
-    getSupplierById, 
-    updateSupplier,
-    createRestockSchedule,
-    getCompanyRestockSchedules,
-    updateRestockStatus,
-    deleteRestockSchedule,
-    createSupplierAgreement,
-    getCompanySupplierAgreements,
-    resolveAgreedCostEndpoint
+import {
+  createSupplier,
+  deleteSupplier,
+  getAllSuppliers,
+  getCompanySuppliers,
+  getSupplierById,
+  updateSupplier,
+  createRestockSchedule,
+  getCompanyRestockSchedules,
+  updateRestockStatus,
+  deleteRestockSchedule,
+  createSupplierAgreement,
+  getCompanySupplierAgreements,
+  resolveAgreedCostEndpoint,
+  getPendingAudits,
+  resolveInventoryAudit
 } from '../controllers/suppliersController';
-import { verifyToken, validarEmpresaUsuario, validarAdminOrSysAdmin, validarSysAdmin } from '../middleware/jwtMiddleware';
+import {
+  verifyToken,
+  validarEmpresaUsuario,
+  validarAdminOrSysAdmin,
+  validarSysAdmin,
+} from '../middleware/jwtMiddleware';
 
 const router = express.Router();
+
+// Endpoints de Auditorías
+router.get('/audit/pending/:companyId', verifyToken, validarAdminOrSysAdmin, getPendingAudits);
+router.post('/audit/resolve/:auditId', verifyToken, validarAdminOrSysAdmin, resolveInventoryAudit);
 
 // Ruta para crear un nuevo proveedor
 router.post('/:companyId', verifyToken, validarEmpresaUsuario, validarAdminOrSysAdmin, createSupplier);
@@ -30,7 +41,13 @@ router.get('/', verifyToken, validarSysAdmin, getAllSuppliers);
 router.get('/company/:companyId', verifyToken, validarEmpresaUsuario, getCompanySuppliers);
 
 // Endpoints de Acuerdos de Precios (Supplier Agreements)
-router.post('/agreement/:companyId', verifyToken, validarEmpresaUsuario, validarAdminOrSysAdmin, createSupplierAgreement);
+router.post(
+  '/agreement/:companyId',
+  verifyToken,
+  validarEmpresaUsuario,
+  validarAdminOrSysAdmin,
+  createSupplierAgreement,
+);
 router.get('/agreement/company/:companyId', verifyToken, validarEmpresaUsuario, getCompanySupplierAgreements);
 router.get('/agreement/resolve', verifyToken, resolveAgreedCostEndpoint);
 

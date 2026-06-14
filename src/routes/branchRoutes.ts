@@ -1,5 +1,11 @@
 import { Router } from 'express';
-import { createBranch, getBranchesByCompany, getBranchById, updateBranch, deleteBranch } from '../controllers/branchController';
+import {
+  createBranch,
+  getBranchesByCompany,
+  getBranchById,
+  updateBranch,
+  deleteBranch,
+} from '../controllers/branchController';
 import { verifyToken, validarAdminCompany } from '../middleware/jwtMiddleware';
 import { checkBranchLimit } from '../middleware/enforceTierLimits';
 

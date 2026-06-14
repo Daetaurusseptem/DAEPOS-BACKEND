@@ -25,7 +25,7 @@ const manualPaymentSchema = new Schema<ManualPaymentDocument>({
   reminderDate: { type: Date },
   reviewedBy: { type: Schema.Types.ObjectId, ref: 'User' },
   reviewedAt: { type: Date },
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
 });
 
 export default mongoose.model<ManualPaymentDocument>('ManualPayment', manualPaymentSchema);

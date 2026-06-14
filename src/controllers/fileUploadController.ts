@@ -2,10 +2,10 @@ import { admin, bucket } from '../config/firebase';
 import { Request, Response } from 'express';
 import multer from 'multer';
 import path from 'path';
-import User from "../models-mongoose/User";
-import Company from "../models-mongoose/Company";
-import Product from "../models-mongoose/Product";
-import ManualPayment from "../models-mongoose/ManualPayment";
+import User from '../models-mongoose/User';
+import Company from '../models-mongoose/Company';
+import Product from '../models-mongoose/Product';
+import ManualPayment from '../models-mongoose/ManualPayment';
 
 // Configurar multer para manejar la subida en memoria
 const storage = multer.memoryStorage();
@@ -13,7 +13,7 @@ const upload = multer({ storage });
 
 // Controlador para subir archivos
 export const subirArchivo = (req: any, res: Response) => {
-const singleUpload = upload.single('img');
+  const singleUpload = upload.single('img');
 
   singleUpload(req, res, async function (error: any) {
     try {
@@ -39,11 +39,11 @@ const singleUpload = upload.single('img');
         console.error('Error subiendo archivo a Firebase', err);
         return res.status(500).json({ error: 'Error subiendo archivo a Firebase', err });
       });
- 
+
       stream.on('finish', async () => {
         const url = await file.getSignedUrl({
           action: 'read',
-          expires: '03-01-2500'
+          expires: '03-01-2500',
         });
 
         let urlImagenActual;
@@ -102,12 +102,11 @@ const singleUpload = upload.single('img');
 
         return res.status(200).json({
           mensaje: 'Archivo subido y URL actualizada con éxito',
-          url: url[0]
+          url: url[0],
         });
       });
 
       stream.end(req.file.buffer);
-
     } catch (dbError) {
       return res.status(500).json({ error: 'Error al actualizar la base de datos', dbError });
     }
@@ -115,11 +114,10 @@ const singleUpload = upload.single('img');
 };
 
 const eliminarImagenFirebase = async (key: string) => {
-    try {
-        const file = bucket.file(key);
-        await file.delete();
-        
-    } catch (err) {
-        console.error("Error al eliminar archivo:", err);
-    }
+  try {
+    const file = bucket.file(key);
+    await file.delete();
+  } catch (err) {
+    console.error('Error al eliminar archivo:', err);
+  }
 };

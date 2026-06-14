@@ -9,13 +9,13 @@ export const getSalesStatistics = async (req: Request, res: Response) => {
     const sales = await Sale.aggregate([
       {
         $group: {
-          _id: { $month: "$date" },
-          totalSales: { $sum: "$total" },
-          totalDiscount: { $sum: "$discount" },
-          count: { $sum: 1 }
-        }
+          _id: { $month: '$date' },
+          totalSales: { $sum: '$total' },
+          totalDiscount: { $sum: '$discount' },
+          count: { $sum: 1 },
+        },
       },
-      { $sort: { _id: 1 } }
+      { $sort: { _id: 1 } },
     ]);
 
     res.status(200).json({ ok: true, sales });
@@ -28,17 +28,17 @@ export const getItemsStatistics = async (req: Request, res: Response) => {
   try {
     const items = await InventoryItem.aggregate([
       {
-        $match: { product: { $exists: true, $ne: null } }
+        $match: { product: { $exists: true, $ne: null } },
       },
       {
         $group: {
-          _id: "$product",
-          totalStock: { $sum: "$stock" },
-          totalValue: { $sum: { $multiply: ["$stock", { $ifNull: ["$sellingPrice", 0] }] } },
-          count: { $sum: 1 }
-        }
+          _id: '$product',
+          totalStock: { $sum: '$stock' },
+          totalValue: { $sum: { $multiply: ['$stock', { $ifNull: ['$sellingPrice', 0] }] } },
+          count: { $sum: 1 },
+        },
       },
-      { $sort: { totalStock: -1 } }
+      { $sort: { totalStock: -1 } },
     ]);
 
     res.status(200).json({ ok: true, items });
@@ -51,18 +51,18 @@ export const getIngredientsStatistics = async (req: Request, res: Response) => {
   try {
     const ingredients = await InventoryItem.aggregate([
       {
-        $match: { product: { $exists: false } }
+        $match: { product: { $exists: false } },
       },
       {
         $group: {
-          _id: "$name",
-          totalStock: { $sum: "$stock" },
-          totalValue: { $sum: { $multiply: ["$stock", { $ifNull: ["$costPrice", 0] }] } },
-          measurement: { $first: "$measurement" },
-          count: { $sum: 1 }
-        }
+          _id: '$name',
+          totalStock: { $sum: '$stock' },
+          totalValue: { $sum: { $multiply: ['$stock', { $ifNull: ['$costPrice', 0] }] } },
+          measurement: { $first: '$measurement' },
+          count: { $sum: 1 },
+        },
       },
-      { $sort: { totalStock: -1 } }
+      { $sort: { totalStock: -1 } },
     ]);
 
     res.status(200).json({ ok: true, ingredients });
@@ -85,9 +85,9 @@ export const getTopSellingProductsByWeek = async (req: Request, res: Response) =
     const matchStage: any = {
       date: {
         $gte: startDate,
-        $lte: endDate
+        $lte: endDate,
       },
-      company: new mongoose.Types.ObjectId(companyId as string)
+      company: new mongoose.Types.ObjectId(companyId as string),
     };
 
     if (branchId) {
@@ -96,41 +96,41 @@ export const getTopSellingProductsByWeek = async (req: Request, res: Response) =
 
     const sales = await Sale.aggregate([
       {
-        $match: matchStage
+        $match: matchStage,
       },
       {
         $addFields: {
-          week: { $isoWeek: "$date" }
-        }
+          week: { $isoWeek: '$date' },
+        },
       },
       {
         $match: {
-          week: parseInt(week as string)
-        }
+          week: parseInt(week as string),
+        },
       },
       {
-        $unwind: "$productsSold"
+        $unwind: '$productsSold',
       },
       {
         $group: {
-          _id: { week: "$week", product: "$productsSold.product" },
-          totalQuantity: { $sum: "$productsSold.quantity" }
-        }
+          _id: { week: '$week', product: '$productsSold.product' },
+          totalQuantity: { $sum: '$productsSold.quantity' },
+        },
       },
       {
         $lookup: {
-          from: "products",
-          localField: "_id.product",
-          foreignField: "_id",
-          as: "product"
-        }
+          from: 'products',
+          localField: '_id.product',
+          foreignField: '_id',
+          as: 'product',
+        },
       },
       {
-        $unwind: "$product"
+        $unwind: '$product',
       },
       {
-        $sort: { totalQuantity: -1 }
-      }
+        $sort: { totalQuantity: -1 },
+      },
     ]);
 
     res.status(200).json({ ok: true, sales });
@@ -154,9 +154,9 @@ export const getIngredientsStatisticsByWeek = async (req: Request, res: Response
       product: { $exists: false },
       receivedDate: {
         $gte: startDate,
-        $lte: endDate
+        $lte: endDate,
       },
-      company: new mongoose.Types.ObjectId(companyId as string)
+      company: new mongoose.Types.ObjectId(companyId as string),
     };
 
     if (branchId) {
@@ -165,28 +165,28 @@ export const getIngredientsStatisticsByWeek = async (req: Request, res: Response
 
     const ingredients = await InventoryItem.aggregate([
       {
-        $match: matchStage
+        $match: matchStage,
       },
       {
         $addFields: {
-          week: { $isoWeek: "$receivedDate" }
-        }
+          week: { $isoWeek: '$receivedDate' },
+        },
       },
       {
         $match: {
-          week: parseInt(week as string)
-        }
+          week: parseInt(week as string),
+        },
       },
       {
         $group: {
-          _id: "$name",
-          totalStock: { $sum: "$stock" },
-          totalValue: { $sum: { $multiply: ["$stock", { $ifNull: ["$costPrice", 0] }] } },
-          measurement: { $first: "$measurement" },
-          count: { $sum: 1 }
-        }
+          _id: '$name',
+          totalStock: { $sum: '$stock' },
+          totalValue: { $sum: { $multiply: ['$stock', { $ifNull: ['$costPrice', 0] }] } },
+          measurement: { $first: '$measurement' },
+          count: { $sum: 1 },
+        },
       },
-      { $sort: { totalStock: -1 } }
+      { $sort: { totalStock: -1 } },
     ]);
 
     res.status(200).json({ ok: true, ingredients });
@@ -217,7 +217,7 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
 
     const salesFilter: any = {
       company: companyObjectId,
-      date: { $gte: startOfDay, $lte: endOfDay }
+      date: { $gte: startOfDay, $lte: endOfDay },
     };
     if (branchId) {
       salesFilter.branch = new mongoose.Types.ObjectId(branchId as string);
@@ -226,30 +226,30 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
     // 1. Total Sales Today
     const salesToday = await Sale.aggregate([
       {
-        $match: salesFilter
+        $match: salesFilter,
       },
       {
         $group: {
           _id: null,
-          total: { $sum: "$total" },
-          count: { $sum: 1 }
-        }
-      }
+          total: { $sum: '$total' },
+          count: { $sum: 1 },
+        },
+      },
     ]);
 
     // 2. Low Stock Count
     // a) Get all inventory items linked to a product
     const inventoryItems = await InventoryItem.find({
       ...branchFilter,
-      product: { $exists: true, $ne: null }
+      product: { $exists: true, $ne: null },
     })
       .populate({
         path: 'product',
         match: { isComposite: true }, // Only populate composite products to save memory
         populate: {
           path: 'recipe',
-          model: 'Recipe'
-        }
+          model: 'Recipe',
+        },
       })
       .select('stock product branch lowStockThreshold')
       .lean();
@@ -257,11 +257,13 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
     // b) Get all raw materials stock to calculate theoretical stock for composites
     const rawMaterialsStock = await InventoryItem.find({
       company: companyObjectId,
-      rawMaterial: { $exists: true }
-    }).select('stock rawMaterial branch').lean();
+      rawMaterial: { $exists: true },
+    })
+      .select('stock rawMaterial branch')
+      .lean();
 
     const rmStockMap: Record<string, number> = {};
-    rawMaterialsStock.forEach(rm => {
+    rawMaterialsStock.forEach((rm) => {
       const bId = rm.branch ? rm.branch.toString() : 'global';
       const rmId = rm.rawMaterial ? rm.rawMaterial.toString() : '';
       if (rmId) {
@@ -281,7 +283,7 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
         if (item.product.recipe && item.product.recipe.sizes && item.product.recipe.sizes.length > 0) {
           const recipe = item.product.recipe;
           const targetSize = recipe.sizes[0]; // Usamos la receta por defecto
-          
+
           if (targetSize && targetSize.ingredients) {
             let maxYield = Infinity;
             const bId = item.branch ? (item.branch._id || item.branch).toString() : 'global';
@@ -291,17 +293,17 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
               const rmId = ing.ingredient.toString();
               const key = `${bId}-${rmId}`;
               const currentStock = rmStockMap[key] || 0;
-              
+
               if (reqQty > 0) {
-                 const possible = Math.floor(currentStock / reqQty);
-                 if (possible < maxYield) maxYield = possible;
+                const possible = Math.floor(currentStock / reqQty);
+                if (possible < maxYield) maxYield = possible;
               }
             });
-            
+
             theoreticalStock = maxYield === Infinity ? 0 : maxYield;
           }
         }
-        
+
         if (theoreticalStock < threshold) {
           lowStockCount++;
         }
@@ -316,7 +318,7 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
     // 3. Active Registers
     const activeRegisters = await mongoose.model('CashRegister').countDocuments({
       ...branchFilter,
-      closed: false
+      closed: false,
     });
 
     // 4. Recent Sales (Last 5)
@@ -333,8 +335,8 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
         transactionsToday: salesToday[0]?.count || 0,
         lowStockCount,
         activeRegisters,
-        recentSales
-      }
+        recentSales,
+      },
     });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching dashboard summary', error });

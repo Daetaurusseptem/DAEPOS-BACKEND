@@ -1,11 +1,11 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface PendingOrderDocument extends Document {
-  user: mongoose.Types.ObjectId;         // Creador del ticket (Cajero / Sistema)
-  waiter?: mongoose.Types.ObjectId;      // Mesero asignado (In-Restaurant)
+  user: mongoose.Types.ObjectId; // Creador del ticket (Cajero / Sistema)
+  waiter?: mongoose.Types.ObjectId; // Mesero asignado (In-Restaurant)
   date: Date;
-  table?: string;                        // Identificador directo de mesa
-  clientName?: string;                   // Nombre para llevar o comensal
+  table?: string; // Identificador directo de mesa
+  clientName?: string; // Nombre para llevar o comensal
   type: 'dine_in' | 'take_away' | 'delivery' | 'drive_thru';
   paymentStatus: 'unpaid' | 'partial' | 'paid';
   kitchenStatus: 'pending' | 'in_kitchen' | 'ready' | 'delivered' | 'canceled';
@@ -15,7 +15,7 @@ export interface PendingOrderDocument extends Document {
     reference?: string;
     date: Date;
   }[];
-  
+
   // Detalles de preparación para cocina (KDS)
   prepStartedAt?: Date;
   prepCompletedAt?: Date;
@@ -24,20 +24,20 @@ export interface PendingOrderDocument extends Document {
 
   // Detalles específicos según el modo de servicio (Drive-Thru / In-Restaurant / Delivery)
   inRestaurantDetails?: {
-    guestsCount?: number;                // Número de personas en la mesa
-    tableId?: string;                    // Asignación de mesa del plano
+    guestsCount?: number; // Número de personas en la mesa
+    tableId?: string; // Asignación de mesa del plano
   };
-  
+
   driveThruDetails?: {
-    carDescription?: string;             // Ej. "Honda Civic Blanco"
-    licensePlate?: string;               // Placas del vehículo
-    lane?: number;                       // Carril de atención
+    carDescription?: string; // Ej. "Honda Civic Blanco"
+    licensePlate?: string; // Placas del vehículo
+    lane?: number; // Carril de atención
   };
 
   deliveryDetails?: {
     platform: 'uber_eats' | 'rappi' | 'didi_food' | 'phone_order' | 'custom_delivery';
-    orderId: string;                     // Código de orden / Código ticket físico de la App
-    courierName?: string;                // Nombre del repartidor
+    orderId: string; // Código de orden / Código ticket físico de la App
+    courierName?: string; // Nombre del repartidor
     notes?: string;
   };
 
@@ -107,10 +107,10 @@ const pendingOrderSchema = new Schema<PendingOrderDocument>({
       method: { type: String, enum: ['cash', 'credit'], required: true },
       amount: { type: Number, required: true },
       reference: { type: String },
-      date: { type: Date, default: Date.now }
-    }
+      date: { type: Date, default: Date.now },
+    },
   ],
-  
+
   prepStartedAt: { type: Date },
   prepCompletedAt: { type: Date },
   deliveredAt: { type: Date },
@@ -118,23 +118,23 @@ const pendingOrderSchema = new Schema<PendingOrderDocument>({
     type: Schema.Types.ObjectId,
     ref: 'User',
   },
-  
+
   inRestaurantDetails: {
     guestsCount: { type: Number, default: 1 },
-    tableId: { type: String }
+    tableId: { type: String },
   },
-  
+
   driveThruDetails: {
     carDescription: { type: String },
     licensePlate: { type: String },
-    lane: { type: Number }
+    lane: { type: Number },
   },
 
   deliveryDetails: {
     platform: { type: String, enum: ['uber_eats', 'rappi', 'didi_food', 'phone_order', 'custom_delivery'] },
     orderId: { type: String },
     courierName: { type: String },
-    notes: { type: String }
+    notes: { type: String },
   },
 
   productsSold: [
@@ -179,8 +179,8 @@ const pendingOrderSchema = new Schema<PendingOrderDocument>({
       status: {
         type: String,
         enum: ['pending_kitchen', 'sent_to_kitchen', 'canceled'],
-        default: 'pending_kitchen'
-      }
+        default: 'pending_kitchen',
+      },
     },
   ],
   total: {

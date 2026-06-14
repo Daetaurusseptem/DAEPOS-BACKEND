@@ -16,7 +16,7 @@ async function migrateCollections() {
     }
 
     const collections = await db.listCollections().toArray();
-    const collectionNames = collections.map(c => c.name);
+    const collectionNames = collections.map((c) => c.name);
 
     if (collectionNames.includes('companies')) {
       console.log('Renaming "companies" to "companies"...');

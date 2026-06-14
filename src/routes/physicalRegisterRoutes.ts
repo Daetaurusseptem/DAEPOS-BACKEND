@@ -1,9 +1,9 @@
 import express from 'express';
-import { 
-  createPhysicalRegister, 
-  getPhysicalRegistersByCompany, 
-  updatePhysicalRegister, 
-  deletePhysicalRegister 
+import {
+  createPhysicalRegister,
+  getPhysicalRegistersByCompany,
+  updatePhysicalRegister,
+  deletePhysicalRegister,
 } from '../controllers/physicalRegisterController';
 import { verifyToken } from '../middleware/jwtMiddleware';
 

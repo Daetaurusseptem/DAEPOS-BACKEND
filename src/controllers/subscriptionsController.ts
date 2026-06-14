@@ -6,84 +6,83 @@ const stripe = new Stripe(process.env.STRIPE_DEV_KEY!, { apiVersion: '2023-10-16
 import SubscriptionPlan from '../models-mongoose/SubscriptionPlan';
 
 // Obtener todos los productos (suscripciones) de Stripe activos
-export const obtenerProductos = async(req:any, res:any) =>{
-    try {
-        const stripeResponse = await stripe.products.list({ active: true, expand: ['data.default_price'] });
-        const dbPlans = await SubscriptionPlan.find({ isActive: true });
+export const obtenerProductos = async (req: any, res: any) => {
+  try {
+    const stripeResponse = await stripe.products.list({ active: true, expand: ['data.default_price'] });
+    const dbPlans = await SubscriptionPlan.find({ isActive: true });
 
-        const productosConLimites = stripeResponse.data.map((prod: any) => {
-            const dbPlan = dbPlans.find(p => p.stripeProductId === prod.id);
-            if (dbPlan) {
-                prod.metadata = {
-                    ...prod.metadata,
-                    maxBranches: dbPlan.maxBranches.toString(),
-                    maxUsers: dbPlan.maxUsers.toString(),
-                    maxActiveRegisters: dbPlan.maxActiveRegisters.toString()
-                };
-            }
-            return prod;
-        });
+    const productosConLimites = stripeResponse.data.map((prod: any) => {
+      const dbPlan = dbPlans.find((p) => p.stripeProductId === prod.id);
+      if (dbPlan) {
+        prod.metadata = {
+          ...prod.metadata,
+          maxBranches: dbPlan.maxBranches.toString(),
+          maxUsers: dbPlan.maxUsers.toString(),
+          maxActiveRegisters: dbPlan.maxActiveRegisters.toString(),
+        };
+      }
+      return prod;
+    });
 
-        res.status(200).json({
-            ok:true,
-            productos: productosConLimites
-        });
-    } catch (error) {
-        res.status(500).json({ message: 'Error al obtener los productos', error });
-    }
-}
+    res.status(200).json({
+      ok: true,
+      productos: productosConLimites,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al obtener los productos', error });
+  }
+};
 
 // Obtener los precios de un producto específico
-export const obtenerPreciosDeProducto = async(req:any, res:any) =>{
-    try {
-        const productId = req.params.id;            
-        const precios = await stripe.prices.list({ product: productId });
-        res.status(200).json({
-            ok:true,
-            precios
-        });
-    } catch (error) {
-        res.status(500).json({ message: 'Error al obtener los precios del producto', error });
-    }
-}
+export const obtenerPreciosDeProducto = async (req: any, res: any) => {
+  try {
+    const productId = req.params.id;
+    const precios = await stripe.prices.list({ product: productId });
+    res.status(200).json({
+      ok: true,
+      precios,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al obtener los precios del producto', error });
+  }
+};
 
 // Crear una nueva suscripción
-export const crearSuscripcion = async(req:any, res:any) =>{
-    try {
-        const { customerId, priceId } = req.body;
+export const crearSuscripcion = async (req: any, res: any) => {
+  try {
+    const { customerId, priceId } = req.body;
 
-        const stripeSubscription = await stripe.subscriptions.create({
-            customer: customerId,
-            items: [{ price: priceId }],
-            expand: ['latest_invoice.payment_intent'],
-        });
+    const stripeSubscription = await stripe.subscriptions.create({
+      customer: customerId,
+      items: [{ price: priceId }],
+      expand: ['latest_invoice.payment_intent'],
+    });
 
-        if (stripeSubscription.latest_invoice) {
-            // Aquí puedes manejar la información de la factura si es necesario
-        }
-
-        res.status(201).json({ message: 'Suscripción creada exitosamente', stripeSubscription });
-    } catch (error) {
-        res.status(500).json({ message: 'Error al crear la suscripción', error });
+    if (stripeSubscription.latest_invoice) {
+      // Aquí puedes manejar la información de la factura si es necesario
     }
-}
 
-export const crearCliente = async(req:Request, res:Response) =>{
-    try {
-        const { email, name, description } = req.body;
+    res.status(201).json({ message: 'Suscripción creada exitosamente', stripeSubscription });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al crear la suscripción', error });
+  }
+};
 
-        const customer = await stripe.customers.create({
-            email,
-            name,
-            description
-        });
+export const crearCliente = async (req: Request, res: Response) => {
+  try {
+    const { email, name, description } = req.body;
 
-        res.status(201).json({ message: 'Cliente creado exitosamente', customer });
-    } catch (error) {
-        res.status(500).json({ message: 'Error al crear el cliente', error });
-    }
-}
+    const customer = await stripe.customers.create({
+      email,
+      name,
+      description,
+    });
 
+    res.status(201).json({ message: 'Cliente creado exitosamente', customer });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al crear el cliente', error });
+  }
+};
 
 import Company from '../models-mongoose/Company';
 import User from '../models-mongoose/User';
@@ -102,7 +101,7 @@ export const createCheckoutSession = async (req: any, res: Response) => {
       line_items: [{ price: priceId, quantity: 1 }],
       client_reference_id: company._id.toString(),
       success_url: `${process.env.FRONTEND_URL}/dashboard/admin/billing?success=true`,
-      cancel_url: `${process.env.FRONTEND_URL}/dashboard/admin/billing?canceled=true`
+      cancel_url: `${process.env.FRONTEND_URL}/dashboard/admin/billing?canceled=true`,
     };
 
     if (company.stripeCustomerId) {
@@ -132,7 +131,7 @@ export const createCustomerPortalSession = async (req: any, res: Response) => {
 
     const session = await stripe.billingPortal.sessions.create({
       customer: company.stripeCustomerId,
-      return_url: `${process.env.FRONTEND_URL}/dashboard/admin/billing`
+      return_url: `${process.env.FRONTEND_URL}/dashboard/admin/billing`,
     });
 
     res.status(200).json({ ok: true, url: session.url });
@@ -168,7 +167,7 @@ export const stripeWebhook = async (req: Request, res: Response) => {
               maxBranches: plan.maxBranches,
               maxUsers: plan.maxUsers,
               maxActiveRegisters: plan.maxActiveRegisters,
-              features: plan.features
+              features: plan.features,
             };
             await company.save();
             await enforceDowngradeLimits(companyId);
@@ -192,7 +191,7 @@ export const stripeWebhook = async (req: Request, res: Response) => {
         await Company.findByIdAndUpdate(companyId, {
           stripeCustomerId: customerId,
           stripeSubscriptionId: subscriptionId,
-          subscriptionStatus: 'active'
+          subscriptionStatus: 'active',
         });
         await syncPlanSnapshot(companyId, subscriptionId);
       }
@@ -212,10 +211,10 @@ export const stripeWebhook = async (req: Request, res: Response) => {
       const sub = await stripe.subscriptions.retrieve(subscriptionId);
       await Company.findOneAndUpdate(
         { stripeSubscriptionId: subscriptionId },
-        { 
+        {
           subscriptionStatus: 'active',
-          currentPeriodEnd: new Date(sub.current_period_end * 1000)
-        }
+          currentPeriodEnd: new Date(sub.current_period_end * 1000),
+        },
       );
       break;
     }
@@ -225,7 +224,7 @@ export const stripeWebhook = async (req: Request, res: Response) => {
       const subscriptionId = invoiceOrSub.subscription || invoiceOrSub.id;
       await Company.findOneAndUpdate(
         { stripeSubscriptionId: subscriptionId },
-        { subscriptionStatus: event.type === 'invoice.payment_failed' ? 'past_due' : 'canceled' }
+        { subscriptionStatus: event.type === 'invoice.payment_failed' ? 'past_due' : 'canceled' },
       );
       break;
     }

@@ -4,7 +4,7 @@ import InventoryItem from '../models-mongoose/InventoryItem';
 
 export const createRecipe = async (req: Request, res: Response) => {
   try {
-    const {companyId} = req.params;
+    const { companyId } = req.params;
     req.body.company = companyId;
     const recipe = new Recipe(req.body);
     await recipe.save();
@@ -34,14 +34,16 @@ export const consumeIngredients = async (req: Request, res: Response) => {
 
     let targetSize;
     if (sizeName) {
-       targetSize = recipe.sizes.find(s => s.name === sizeName);
+      targetSize = recipe.sizes.find((s) => s.name === sizeName);
     }
     if (!targetSize && recipe.sizes && recipe.sizes.length > 0) {
-       targetSize = recipe.sizes[0];
+      targetSize = recipe.sizes[0];
     }
 
     if (!targetSize || !targetSize.ingredients) {
-       return res.status(400).json({ message: 'La receta no tiene ingredientes configurados para el tamaño especificado.' });
+      return res
+        .status(400)
+        .json({ message: 'La receta no tiene ingredientes configurados para el tamaño especificado.' });
     }
 
     for (const recipeIngredient of targetSize.ingredients) {

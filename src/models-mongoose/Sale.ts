@@ -34,7 +34,7 @@ export interface SaleDocument extends Document {
   appliedPromotion?: mongoose.Types.ObjectId;
   pointsRedeemed?: number;
   pointsEarned?: number;
-  
+
   // Detalles rápidos para pedidos de delivery
   deliveryDetails?: {
     platform: 'uber_eats' | 'rappi' | 'didi_food' | 'phone_order' | 'custom_delivery';
@@ -108,16 +108,16 @@ const saleSchema = new Schema<SaleDocument>({
   ],
   paymentMethod: {
     type: String,
-    enum: ['cash', 'credit', 'mixed'],
+    enum: ['cash', 'credit', 'debit', 'mixed'],
     required: true,
   },
   payments: [
     {
-      method: { type: String, enum: ['cash', 'credit'], required: true },
+      method: { type: String, enum: ['cash', 'credit', 'debit'], required: true },
       amount: { type: Number, required: true },
       reference: { type: String },
-      date: { type: Date, default: Date.now }
-    }
+      date: { type: Date, default: Date.now },
+    },
   ],
   paymentReference: {
     type: String,
@@ -158,7 +158,7 @@ const saleSchema = new Schema<SaleDocument>({
     platform: { type: String, enum: ['uber_eats', 'rappi', 'didi_food', 'phone_order', 'custom_delivery'] },
     orderId: { type: String },
     courierName: { type: String },
-    notes: { type: String }
+    notes: { type: String },
   },
 });
 

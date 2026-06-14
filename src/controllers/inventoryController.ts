@@ -26,9 +26,9 @@ export const createInventoryItem = async (req: Request, res: Response) => {
 export const getInventoryByCompany = async (req: Request, res: Response) => {
   try {
     const { companyId } = req.params;
-    const { search = '', type = 'all', branchId } = req.query;
+    const { search = '', type = 'all', branchId, supplier } = req.query;
 
-    let query: any = { company: companyId };
+    const query: any = { company: companyId };
 
     const userId = (req as any).uid;
     const user = await User.findById(userId);
@@ -44,6 +44,10 @@ export const getInventoryByCompany = async (req: Request, res: Response) => {
       if (branchId) {
         query.branch = branchId;
       }
+    }
+
+    if (supplier) {
+      query.supplier = supplier;
     }
 
     if (search) {
@@ -62,8 +66,8 @@ export const getInventoryByCompany = async (req: Request, res: Response) => {
         path: 'product',
         populate: {
           path: 'recipe',
-          model: 'Recipe'
-        }
+          model: 'Recipe',
+        },
       })
       .populate('branch', 'name')
       .sort({ name: 1 })
@@ -72,7 +76,7 @@ export const getInventoryByCompany = async (req: Request, res: Response) => {
     // Calcular el Stock Teórico para productos compuestos de manera optimizada
     const rawMaterialsStock = await InventoryItem.find({ company: companyId, rawMaterial: { $exists: true } }).lean();
     const rmStockMap: Record<string, number> = {};
-    rawMaterialsStock.forEach(rm => {
+    rawMaterialsStock.forEach((rm) => {
       const bId = rm.branch ? rm.branch.toString() : 'global';
       const rmId = rm.rawMaterial ? rm.rawMaterial.toString() : '';
       if (rmId) {
@@ -82,10 +86,16 @@ export const getInventoryByCompany = async (req: Request, res: Response) => {
     });
 
     items.forEach((item: any) => {
-      if (item.product && item.product.isComposite && item.product.recipe && item.product.recipe.sizes && item.product.recipe.sizes.length > 0) {
+      if (
+        item.product &&
+        item.product.isComposite &&
+        item.product.recipe &&
+        item.product.recipe.sizes &&
+        item.product.recipe.sizes.length > 0
+      ) {
         const recipe = item.product.recipe;
         const targetSize = recipe.sizes[0];
-        
+
         if (targetSize && targetSize.ingredients) {
           let maxYield = Infinity;
           const bId = item.branch ? (item.branch._id || item.branch).toString() : 'global';
@@ -95,13 +105,13 @@ export const getInventoryByCompany = async (req: Request, res: Response) => {
             const rmId = ing.ingredient.toString();
             const key = `${bId}-${rmId}`;
             const currentStock = rmStockMap[key] || 0;
-            
+
             if (reqQty > 0) {
-               const possible = Math.floor(currentStock / reqQty);
-               if (possible < maxYield) maxYield = possible;
+              const possible = Math.floor(currentStock / reqQty);
+              if (possible < maxYield) maxYield = possible;
             }
           });
-          
+
           item.theoreticalStock = maxYield === Infinity ? 0 : maxYield;
         } else {
           item.theoreticalStock = 0;
@@ -120,7 +130,7 @@ export const getInventoryByCategory = async (req: Request, res: Response) => {
     const { companyId } = req.params;
     const { category, search = '', page = 1, limit = 10, branchId } = req.query;
 
-    let query: any = { company: companyId };
+    const query: any = { company: companyId };
 
     const userId = (req as any).uid;
     const user = await User.findById(userId);
@@ -146,7 +156,7 @@ export const getInventoryByCategory = async (req: Request, res: Response) => {
     // y luego los InventoryItems vinculados a esos productos
     if (category) {
       const productsInCategory = await Product.find({ categories: category }).select('_id');
-      const productIds = productsInCategory.map(p => p._id);
+      const productIds = productsInCategory.map((p) => p._id);
       query.product = { $in: productIds };
     } else {
       // Si no hay categoría, al menos aseguramos que sean productos de venta
@@ -158,8 +168,8 @@ export const getInventoryByCategory = async (req: Request, res: Response) => {
         path: 'product',
         populate: {
           path: 'recipe',
-          model: 'Recipe'
-        }
+          model: 'Recipe',
+        },
       })
       .populate('supplier')
       .limit(Number(limit))
@@ -170,7 +180,7 @@ export const getInventoryByCategory = async (req: Request, res: Response) => {
     // Calcular el Stock Teórico para productos compuestos de manera optimizada
     const rawMaterialsStock = await InventoryItem.find({ company: companyId, rawMaterial: { $exists: true } }).lean();
     const rmStockMap: Record<string, number> = {};
-    rawMaterialsStock.forEach(rm => {
+    rawMaterialsStock.forEach((rm) => {
       const bId = rm.branch ? rm.branch.toString() : 'global';
       const rmId = rm.rawMaterial ? rm.rawMaterial.toString() : '';
       if (rmId) {
@@ -180,11 +190,17 @@ export const getInventoryByCategory = async (req: Request, res: Response) => {
     });
 
     items.forEach((item: any) => {
-      if (item.product && item.product.isComposite && item.product.recipe && item.product.recipe.sizes && item.product.recipe.sizes.length > 0) {
+      if (
+        item.product &&
+        item.product.isComposite &&
+        item.product.recipe &&
+        item.product.recipe.sizes &&
+        item.product.recipe.sizes.length > 0
+      ) {
         const recipe = item.product.recipe;
         // Calcular el stock teórico basándonos en el tamaño por defecto (el primero)
         const targetSize = recipe.sizes[0];
-        
+
         if (targetSize && targetSize.ingredients) {
           let maxYield = Infinity;
           const bId = item.branch ? (item.branch._id || item.branch).toString() : 'global';
@@ -194,13 +210,13 @@ export const getInventoryByCategory = async (req: Request, res: Response) => {
             const rmId = ing.ingredient.toString();
             const key = `${bId}-${rmId}`;
             const currentStock = rmStockMap[key] || 0;
-            
+
             if (reqQty > 0) {
-               const possible = Math.floor(currentStock / reqQty);
-               if (possible < maxYield) maxYield = possible;
+              const possible = Math.floor(currentStock / reqQty);
+              if (possible < maxYield) maxYield = possible;
             }
           });
-          
+
           item.theoreticalStock = maxYield === Infinity ? 0 : maxYield;
         } else {
           item.theoreticalStock = 0;
@@ -215,7 +231,7 @@ export const getInventoryByCategory = async (req: Request, res: Response) => {
       items,
       totalPages: Math.ceil(total / Number(limit)),
       currentPage: Number(page),
-      totalItems: total
+      totalItems: total,
     });
   } catch (error) {
     res.status(500).json({ ok: false, message: 'Error fetching inventory by category', error });
@@ -261,7 +277,7 @@ export const deductStock = async (inventoryItemId: string, quantity: number) => 
 
   item.stock -= quantity;
   if (item.stock < 0) throw new Error(`Insufficient stock for ${item.name}`);
-  
+
   await item.save();
 };
 
@@ -271,14 +287,14 @@ export const deductRecipeIngredients = async (recipeId: string, multiplier: numb
 
   let targetSize;
   if (sizeName) {
-     targetSize = recipe.sizes.find(s => s.name === sizeName);
+    targetSize = recipe.sizes.find((s) => s.name === sizeName);
   }
   if (!targetSize && recipe.sizes && recipe.sizes.length > 0) {
-     targetSize = recipe.sizes[0];
+    targetSize = recipe.sizes[0];
   }
 
   if (!targetSize || !targetSize.ingredients) {
-     throw new Error(`La receta no tiene ingredientes configurados para el tamaño especificado.`);
+    throw new Error(`La receta no tiene ingredientes configurados para el tamaño especificado.`);
   }
 
   for (const component of targetSize.ingredients) {
@@ -294,11 +310,12 @@ export const processSale = async (req: Request, res: Response) => {
       // Find the primary inventory item for this product
       // A saleItem might point directly to an inventoryItemId
       const inventoryItem = await InventoryItem.findById(saleItem.inventoryItemId).populate('product');
-      
+
       if (!inventoryItem) throw new Error(`Item ${saleItem.inventoryItemId} not found`);
 
       if (inventoryItem.product && (inventoryItem.product as any).isComposite) {
-        if (!(inventoryItem.product as any).recipe) throw new Error(`Composite product ${(inventoryItem.product as any).name} has no recipe`);
+        if (!(inventoryItem.product as any).recipe)
+          throw new Error(`Composite product ${(inventoryItem.product as any).name} has no recipe`);
         await deductRecipeIngredients((inventoryItem.product as any).recipe, saleItem.quantity, saleItem.sizeName);
       } else {
         await deductStock(inventoryItem._id.toString(), saleItem.quantity);
@@ -316,11 +333,11 @@ export const getStockByProductAndBranch = async (req: Request, res: Response) =>
   try {
     const { companyId, branchId, productId } = req.params;
     const item = await InventoryItem.findOne({ company: companyId, branch: branchId, product: productId });
-    
+
     if (!item) {
       return res.status(200).json({ ok: true, stock: 0 });
     }
-    
+
     res.status(200).json({ ok: true, stock: item.stock });
   } catch (error) {
     res.status(500).json({ ok: false, message: 'Error fetching stock', error });
@@ -330,10 +347,10 @@ export const getStockByProductAndBranch = async (req: Request, res: Response) =>
 export const getRecipeStockDetails = async (req: Request, res: Response) => {
   try {
     const { productId, branchId } = req.params;
-    
+
     const product = await Product.findById(productId).populate({
       path: 'recipe',
-      populate: { path: 'sizes.ingredients.ingredient', model: 'RawMaterial' }
+      populate: { path: 'sizes.ingredients.ingredient', model: 'RawMaterial' },
     });
 
     if (!product || !product.isComposite || !product.recipe) {
@@ -354,13 +371,14 @@ export const getRecipeStockDetails = async (req: Request, res: Response) => {
         const measurementUnit = ing.ingredient.measurementUnit;
 
         const invItem = await InventoryItem.findOne({ rawMaterial: rawMaterialId, branch: branchId });
-        
+
         ingredientsStock.push({
           rawMaterialId,
           name: rawMaterialName,
           measurementUnit,
           currentStock: invItem ? invItem.stock : 0,
-          inventoryItemId: invItem ? invItem._id : null
+          inventoryItemId: invItem ? invItem._id : null,
+          reqQty: ing.quantity,
         });
       }
     }
@@ -377,5 +395,5 @@ export default {
   updateInventoryItem,
   deleteInventoryItem,
   processSale,
-  getRecipeStockDetails
+  getRecipeStockDetails,
 };

@@ -32,10 +32,10 @@ const inventoryItemSchema = new Schema<InventoryItemDocument>({
   stock: { type: Number, required: true, default: 0, min: 0 },
   costPrice: { type: Number, required: true, min: 0 },
   sellingPrice: { type: Number, min: 0 },
-  measurement: { 
-    type: String, 
-    enum: ['unit', 'g', 'ml', 'kg', 'l'], 
-    default: 'unit' 
+  measurement: {
+    type: String,
+    enum: ['unit', 'g', 'ml', 'kg', 'l'],
+    default: 'unit',
   },
   product: { type: Schema.Types.ObjectId, ref: 'Product' },
   rawMaterial: { type: Schema.Types.ObjectId, ref: 'RawMaterial' },
@@ -48,10 +48,10 @@ const inventoryItemSchema = new Schema<InventoryItemDocument>({
       extraPrice: { type: Number, required: true },
       isExclusive: { type: Boolean, default: false },
       rawMaterial: { type: Schema.Types.ObjectId, ref: 'RawMaterial', required: false },
-      quantityToDeduct: { type: Number, default: 0 }
+      quantityToDeduct: { type: Number, default: 0 },
     },
   ],
-  lowStockThreshold: { type: Number, default: 5 }
+  lowStockThreshold: { type: Number, default: 5 },
 });
 
 export default mongoose.model<InventoryItemDocument>('InventoryItem', inventoryItemSchema);

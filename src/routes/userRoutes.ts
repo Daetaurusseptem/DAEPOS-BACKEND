@@ -17,7 +17,13 @@ import {
   toggleUserBlock,
   getUnassignedAdmins,
 } from '../controllers/userController';
-import { validarAdmin, validarAdminCompany, validarAdminOrSysAdmin, validarSysAdmin, verifyToken } from '../middleware/jwtMiddleware';
+import {
+  validarAdmin,
+  validarAdminCompany,
+  validarAdminOrSysAdmin,
+  validarSysAdmin,
+  verifyToken,
+} from '../middleware/jwtMiddleware';
 import { checkUserLimit } from '../middleware/enforceTierLimits';
 
 const router = Router();
@@ -28,7 +34,7 @@ router.get('/number', verifyToken, validarSysAdmin, getNumberUsers);
 router.get('/admins/available', verifyToken, validarSysAdmin, getAvailableAdmins);
 router.get('/company/admins/all', verifyToken, validarSysAdmin, getAllAdmins);
 router.get('/company/sysadmins/all', verifyToken, validarSysAdmin, getAllSysadmins);
-router.get('/company/admins/unassigned', verifyToken, validarSysAdmin, getUnassignedAdmins );
+router.get('/company/admins/unassigned', verifyToken, validarSysAdmin, getUnassignedAdmins);
 router.get('/company/admin/:adminId', verifyToken, validarAdminOrSysAdmin, getCompanyAdmin);
 
 // Rutas dinámicas con parámetros específicos
@@ -38,9 +44,9 @@ router.get('/company/sysadmin/:companyId', [verifyToken, validarAdminOrSysAdmin]
 
 // Rutas dinámicas para acciones específicas de un usuario
 router.get('/:id', verifyToken, validarSysAdmin, getUserById);
-router.get('/company/solo/:id', verifyToken, validarAdmin,validarAdminCompany, getUserByIdSoloAdmin);
+router.get('/company/solo/:id', verifyToken, validarAdmin, validarAdminCompany, getUserByIdSoloAdmin);
 router.post('/', createUser);
-router.put('/:id', verifyToken,[verifyToken, validarAdminCompany, validarAdminOrSysAdmin], updateUser);
+router.put('/:id', verifyToken, [verifyToken, validarAdminCompany, validarAdminOrSysAdmin], updateUser);
 
 // sysadmin
 router.delete('/:id', verifyToken, validarSysAdmin, deleteUser);
@@ -50,4 +56,3 @@ router.delete('/admin/:companyId/:id', verifyToken, validarAdminCompany, deleteU
 router.put('/admin/:companyId/:id/toggle-block', verifyToken, validarAdminCompany, toggleUserBlock);
 
 export default router;
- 

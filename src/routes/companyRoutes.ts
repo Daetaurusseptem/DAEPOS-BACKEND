@@ -12,12 +12,12 @@ import { validarSysAdmin, verifyToken } from '../middleware/jwtMiddleware';
 
 const router = Router();
 
-router.get('/',verifyToken,validarSysAdmin, getCompaniesPages);
-router.get('/number',verifyToken, validarSysAdmin, getNumberCompanies);
-router.post('/',verifyToken,validarSysAdmin, createEmpresa);
+router.get('/', verifyToken, validarSysAdmin, getCompaniesPages);
+router.get('/number', verifyToken, validarSysAdmin, getNumberCompanies);
+router.post('/', verifyToken, validarSysAdmin, createEmpresa);
 
-router.get('/:id',verifyToken, getEmpresaById);
-router.put('/:id', verifyToken,validarSysAdmin,updateEmpresa);
-router.delete('/:id',verifyToken,validarSysAdmin, deleteEmpresa);
+router.get('/:id', verifyToken, getEmpresaById);
+router.put('/:id', verifyToken, validarSysAdmin, updateEmpresa);
+router.delete('/:id', verifyToken, validarSysAdmin, deleteEmpresa);
 
 export default router;

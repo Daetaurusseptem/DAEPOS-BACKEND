@@ -2,23 +2,23 @@
 
 import mongoose, { Schema, Document } from 'mongoose';
 
-  export interface SupplierDocument extends Document {
-    name: string;
-    description:string;
-    contactInfo: {
-      email: string;
-      phone: string;
-      address: string;
-    };
-    company: mongoose.Types.ObjectId; // Referencia a Company
-  }
+export interface SupplierDocument extends Document {
+  name: string;
+  description: string;
+  contactInfo: {
+    email: string;
+    phone: string;
+    address: string;
+  };
+  company: mongoose.Types.ObjectId; // Referencia a Company
+}
 
 const supplierSchema = new Schema<SupplierDocument>({
   name: {
     type: String,
     required: true,
   },
-  description:String,
+  description: String,
   contactInfo: {
     email: {
       type: String,
