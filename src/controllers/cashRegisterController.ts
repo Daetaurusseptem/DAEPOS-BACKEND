@@ -99,8 +99,11 @@ export const closeCashRegister = async (req: Request, res: Response) => {
     // Solo bloquea si hay comandas NO canceladas y NO entregadas, o impagas
     const hasPendingOrders = await PendingOrder.exists({
       cashRegister: cashRegister._id,
-      kitchenStatus: { $nin: ['delivered', 'canceled'] },
-      paymentStatus: { $in: ['unpaid', 'partial'] },
+      kitchenStatus: { $ne: 'canceled' },
+      $or: [
+        { kitchenStatus: { $nin: ['delivered', 'canceled'] } },
+        { paymentStatus: { $in: ['unpaid', 'partial'] } },
+      ],
     });
 
     if (hasPendingOrders) {

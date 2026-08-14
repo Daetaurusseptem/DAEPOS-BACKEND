@@ -221,10 +221,23 @@ export const createPendingOrder = async (req: Request, res: Response) => {
 export const getActivePendingOrders = async (req: Request, res: Response) => {
   try {
     const { branchId, companyId } = req.query;
-    const query: any = { kitchenStatus: { $in: ['pending', 'in_kitchen', 'ready', 'delivered'] } };
+    const query: any = {
+      kitchenStatus: { $ne: 'canceled' },
+      $or: [
+        { kitchenStatus: { $in: ['pending', 'in_kitchen', 'ready'] } },
+        { paymentStatus: { $in: ['unpaid', 'partial'] } },
+      ],
+    };
 
-    if (companyId) query.company = companyId;
-    if (branchId) query.branch = branchId;
+    if (branchId) {
+      query.branch = branchId;
+      const openRegisters = await CashRegister.find({ branch: branchId, closed: false }).select('_id');
+      query.cashRegister = { $in: openRegisters.map((r) => r._id) };
+    } else if (companyId) {
+      query.company = companyId;
+      const openRegisters = await CashRegister.find({ company: companyId, closed: false }).select('_id');
+      query.cashRegister = { $in: openRegisters.map((r) => r._id) };
+    }
 
     const orders = await PendingOrder.find(query)
       .populate('user')

@@ -4,6 +4,7 @@ interface Category {
   company: mongoose.Types.ObjectId;
   name: string;
   description: string;
+  isOperational: boolean;
 }
 
 const CategorySchema = new mongoose.Schema<Category>(
@@ -20,6 +21,10 @@ const CategorySchema = new mongoose.Schema<Category>(
     },
     description: {
       type: String,
+    },
+    isOperational: {
+      type: Boolean,
+      default: false,
     },
   },
   { timestamps: true },

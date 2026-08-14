@@ -57,7 +57,11 @@ export const getInventoryByCompany = async (req: Request, res: Response) => {
     if (type === 'raw_material') {
       query.product = { $exists: false };
     } else if (type === 'product') {
-      query.product = { $exists: true };
+      const sellableProducts = await Product.find({ company: companyId, isSellable: { $ne: false } }).select('_id');
+      query.product = { $in: sellableProducts.map((p) => p._id) };
+    } else if (type === 'operational') {
+      const operationalProducts = await Product.find({ company: companyId, isSellable: false }).select('_id');
+      query.product = { $in: operationalProducts.map((p) => p._id) };
     }
 
     const items = await InventoryItem.find(query)
@@ -155,12 +159,14 @@ export const getInventoryByCategory = async (req: Request, res: Response) => {
     // Si se especifica categoría, buscamos los productos que pertenecen a esa categoría
     // y luego los InventoryItems vinculados a esos productos
     if (category) {
-      const productsInCategory = await Product.find({ categories: category }).select('_id');
+      const productsInCategory = await Product.find({ categories: category, isSellable: { $ne: false } }).select('_id');
       const productIds = productsInCategory.map((p) => p._id);
       query.product = { $in: productIds };
     } else {
-      // Si no hay categoría, al menos aseguramos que sean productos de venta
-      query.product = { $exists: true };
+      // Si no hay categoría, al menos aseguramos que sean productos de venta y permitidos
+      const sellableProducts = await Product.find({ company: companyId, isSellable: { $ne: false } }).select('_id');
+      const sellableIds = sellableProducts.map((p) => p._id);
+      query.product = { $in: sellableIds };
     }
 
     const items = await InventoryItem.find(query)

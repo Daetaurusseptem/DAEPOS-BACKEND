@@ -37,11 +37,18 @@ export const getAllCategories = async (req: Request, res: Response) => {
 export const getAllCategoriesCompany = async (req: Request, res: Response) => {
   try {
     const { companyId } = req.params;
+    const { pos } = req.query;
     const company = await Company.findById(companyId);
     if (!company) {
       return res.status(404).json({ message: 'Company no existe' });
     }
-    const categories = await Category.find({ company: companyId });
+    
+    const query: any = { company: companyId };
+    if (pos === 'true') {
+      query.isOperational = { $ne: true };
+    }
+
+    const categories = await Category.find(query);
     res.status(200).json({
       ok: true,
       categories,
